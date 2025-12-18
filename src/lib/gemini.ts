@@ -348,6 +348,57 @@ ${instruction}
 }
 
 /**
+ * Generate a single fashion design image (for streaming)
+ */
+export async function generateSingleDesign(
+  referenceImages: { base64: string; mimeType: string }[],
+  prompt: string,
+  index: number = 0
+): Promise<{ base64: string; mimeType: string } | null> {
+  const systemPrompt = `あなたはファッションデザインのAIアシスタントです。
+参照画像の要素を抽出して「新規デザイン案」を生成してください。
+
+重要なルール:
+- ブランドロゴや既存デザインを直接コピーしない
+- 参照画像からシルエット、素材感、カラーパレット、ディテールを抽象化して活用
+- 出力はファッションルックのプロダクト写真風
+- 背景はシンプルな白またはライトグレー
+- モデルは全身が見えるように配置
+- テキスト、ラベル、透かしを含めない
+
+ユーザーの指示:
+${prompt}
+
+ユニークなバリエーションを1つ生成してください。`;
+
+  const parts: GeminiPart[] = [
+    { text: systemPrompt },
+    ...referenceImages.map((img) => ({
+      inlineData: {
+        mimeType: img.mimeType,
+        data: img.base64.replace(/^data:image\/\w+;base64,/, ''),
+      },
+    })),
+  ];
+
+  // Add delay for rate limiting (except first request)
+  if (index > 0) {
+    await sleep(7000);
+  }
+
+  const response = await callGeminiAPI(
+    IMAGE_MODEL,
+    [{ role: 'user', parts }],
+    {
+      temperature: 0.8 + (index * 0.05),
+      responseModalities: ['IMAGE', 'TEXT'],
+    }
+  );
+
+  return extractImageFromResponse(response);
+}
+
+/**
  * Generate a text description/inspiration based on reference images
  */
 export async function generateInspiration(

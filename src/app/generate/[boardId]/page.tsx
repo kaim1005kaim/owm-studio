@@ -63,7 +63,7 @@ export default function GeneratePage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [count, setCount] = useState<12 | 24 | 48>(12);
+  const [count, setCount] = useState<4 | 8 | 12>(4);
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [inspiration, setInspiration] = useState('');
   const [selectedOutputs, setSelectedOutputs] = useState<string[]>([]);
@@ -307,7 +307,7 @@ export default function GeneratePage() {
             {/* Count Selection */}
             <div className="flex items-center gap-4 mb-4">
               <span className="text-xs text-[var(--text-secondary)]">Generate:</span>
-              {([12, 24, 48] as const).map((c) => (
+              {([4, 8, 12] as const).map((c) => (
                 <button
                   key={c}
                   onClick={() => setCount(c)}

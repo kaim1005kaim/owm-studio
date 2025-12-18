@@ -10,7 +10,7 @@ interface GenerateRequest {
   workspaceSlug: string;
   boardId: string;
   prompt: string;
-  count: 12 | 24 | 48;
+  count: 4 | 8 | 12;
   aspectRatio?: string;
   imageSize?: '2K' | '4K';
 }
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabase();
     const body: GenerateRequest = await request.json();
-    const { workspaceSlug, boardId, prompt, count = 12 } = body;
+    const { workspaceSlug, boardId, prompt, count = 4 } = body;
 
     if (!workspaceSlug || !boardId || !prompt) {
       return NextResponse.json(
@@ -118,82 +118,76 @@ export async function POST(request: NextRequest) {
       console.error('Inspiration generation failed:', error);
     }
 
-    // Generate designs in batches
-    const batchSize = 4; // Generate 4 at a time to avoid timeouts
+    // Generate designs (limited count to avoid timeout)
+    const actualCount = Math.min(count, 4); // Limit to 4 for now to avoid timeout
     const outputs: {
       id: string;
       assetId: string;
       url: string;
     }[] = [];
 
-    const totalBatches = Math.ceil(count / batchSize);
+    try {
+      const generatedImages = await generateDesigns(
+        referenceImages,
+        `${prompt}\n\n参考インスピレーション:\n${inspirationText}`,
+        actualCount
+      );
 
-    for (let batch = 0; batch < totalBatches; batch++) {
-      const batchCount = Math.min(batchSize, count - batch * batchSize);
+      // Save each generated image
+      for (const image of generatedImages) {
+        const assetId = uuidv4();
+        const r2Key = generateR2Key(workspaceSlug, 'gen', assetId, 'png');
 
-      try {
-        const generatedImages = await generateDesigns(
-          referenceImages,
-          `${prompt}\n\n参考インスピレーション:\n${inspirationText}`,
-          batchCount
-        );
+        // Upload to R2
+        const publicUrl = await uploadBase64ToR2(r2Key, image.base64, image.mimeType);
 
-        // Save each generated image
-        for (const image of generatedImages) {
-          const assetId = uuidv4();
-          const r2Key = generateR2Key(workspaceSlug, 'gen', assetId, 'png');
-
-          // Upload to R2
-          const publicUrl = await uploadBase64ToR2(r2Key, image.base64, image.mimeType);
-
-          // Create asset record
-          const { error: assetError } = await supabase
-            .from('assets')
-            .insert({
-              id: assetId,
-              workspace_id: workspace.id,
-              kind: 'generated',
-              source: 'generated',
-              status: 'ready',
-              r2_key: r2Key,
-              mime: image.mimeType,
-              metadata: {
-                generationId,
-                prompt,
-              },
-            });
-
-          if (assetError) {
-            console.error('Asset save error:', assetError);
-            continue;
-          }
-
-          // Create generation output record
-          const outputId = uuidv4();
-          const { error: outputError } = await supabase
-            .from('generation_outputs')
-            .insert({
-              id: outputId,
-              generation_id: generationId,
-              asset_id: assetId,
-              score: 0,
-              liked: false,
-            });
-
-          if (outputError) {
-            console.error('Output save error:', outputError);
-            continue;
-          }
-
-          outputs.push({
-            id: outputId,
-            assetId,
-            url: publicUrl,
+        // Create asset record
+        const { error: assetError } = await supabase
+          .from('assets')
+          .insert({
+            id: assetId,
+            workspace_id: workspace.id,
+            kind: 'generated',
+            source: 'generated',
+            status: 'ready',
+            r2_key: r2Key,
+            mime: image.mimeType,
+            metadata: {
+              generationId,
+              prompt,
+            },
           });
+
+        if (assetError) {
+          console.error('Asset save error:', assetError);
+          continue;
         }
-      } catch (error) {
-        console.error(`Batch ${batch + 1} generation failed:`, error);
+
+        // Create generation output record
+        const outputId = uuidv4();
+        const { error: outputError } = await supabase
+          .from('generation_outputs')
+          .insert({
+            id: outputId,
+            generation_id: generationId,
+            asset_id: assetId,
+            score: 0,
+            liked: false,
+          });
+
+        if (outputError) {
+          console.error('Output save error:', outputError);
+          continue;
+        }
+
+        outputs.push({
+          id: outputId,
+          assetId,
+          url: publicUrl,
+        });
       }
+    } catch (error) {
+      console.error('Generation failed:', error);
     }
 
     return NextResponse.json({
