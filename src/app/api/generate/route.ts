@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         workspace_id: workspace.id,
         board_id: boardId,
         prompt,
-        model: 'gemini-2.0-flash-preview-image-generation',
+        model: 'gemini-2.5-flash-preview-05-20',
         config: {
           count,
           aspectRatio: body.aspectRatio || '4:5',
