@@ -61,21 +61,9 @@ export async function GET(request: NextRequest) {
         console.error('Board items error:', itemsError);
       }
 
-      const assets = (items || []).map((item) => {
-        const asset = item.assets as {
-          id: string;
-          r2_key: string;
-          thumb_r2_key?: string;
-          title?: string;
-          status: string;
-          asset_annotations?: {
-            caption?: string;
-            tags?: string[];
-            silhouette?: string;
-            material?: string;
-            mood?: string;
-          }[];
-        };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const assets = (items || []).map((item: any) => {
+        const asset = item.assets;
         return {
           id: asset.id,
           position: item.position,
