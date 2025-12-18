@@ -6,9 +6,6 @@ import { usePathname } from 'next/navigation';
 const navItems = [
   { href: '/library', label: 'LIBRARY', subtitle: 'Reference Archive' },
   { href: '/board', label: 'MOODBOARD', subtitle: 'Reference Sets' },
-  { href: '/generate', label: 'GENERATE', subtitle: 'Create Designs' },
-  { href: '/refine', label: 'REFINE', subtitle: 'Edit & Iterate' },
-  { href: '/history', label: 'HISTORY', subtitle: 'Generation Log' },
 ];
 
 export default function Navigation() {
