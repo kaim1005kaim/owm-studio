@@ -26,12 +26,32 @@ interface GeneratedOutput {
   score?: number;
 }
 
+interface EditHistory {
+  id: string;
+  assetId: string;
+  url: string;
+  instruction: string;
+  createdAt: string;
+}
+
 const PROMPT_TEMPLATES = [
   { label: 'Tech', prompt: 'Technical fabric, functional details, urban utility aesthetic' },
   { label: 'Mode', prompt: 'High fashion, editorial quality, avant-garde silhouettes' },
   { label: 'Street', prompt: 'Streetwear aesthetic, oversized fit, graphic elements' },
   { label: 'Minimal', prompt: 'Clean lines, monochrome palette, architectural shapes' },
   { label: 'Classic', prompt: 'Timeless elegance, tailored fit, sophisticated details' },
+];
+
+const EDIT_PRESETS = [
+  { label: '丈 -8cm', instruction: '丈を8cm短くしてください' },
+  { label: '丈 +8cm', instruction: '丈を8cm長くしてください' },
+  { label: '襟を立てる', instruction: '襟を立ち襟にしてください' },
+  { label: 'ナイロン素材', instruction: '素材をテックナイロンに変更してください' },
+  { label: 'ウール素材', instruction: '素材をウールツイードに変更してください' },
+  { label: 'レザー素材', instruction: '素材をレザーに変更してください' },
+  { label: 'モノトーン', instruction: '配色をモノトーン（白黒グレー）に変更してください' },
+  { label: 'ポケット追加', instruction: 'ユーティリティポケットを追加してください' },
+  { label: 'オーバーサイズ', instruction: 'シルエットをオーバーサイズに変更してください' },
 ];
 
 export default function GeneratePage() {
@@ -47,6 +67,13 @@ export default function GeneratePage() {
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [inspiration, setInspiration] = useState('');
   const [selectedOutputs, setSelectedOutputs] = useState<string[]>([]);
+
+  // Edit drawer state
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<{ assetId: string; url: string } | null>(null);
+  const [editInstruction, setEditInstruction] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editHistory, setEditHistory] = useState<EditHistory[]>([]);
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
@@ -111,6 +138,81 @@ export default function GeneratePage() {
 
   const handleRefine = (assetId: string) => {
     router.push(`/refine/${assetId}`);
+  };
+
+  // Open edit drawer
+  const handleOpenEdit = (assetId: string, url: string) => {
+    setEditingAsset({ assetId, url });
+    setEditDrawerOpen(true);
+    setEditInstruction('');
+    setEditHistory([]);
+  };
+
+  // Close edit drawer
+  const handleCloseEdit = () => {
+    setEditDrawerOpen(false);
+    setEditingAsset(null);
+    setEditInstruction('');
+  };
+
+  // Apply edit
+  const handleApplyEdit = async (instruction: string) => {
+    if (!instruction.trim() || !editingAsset) return;
+
+    setEditing(true);
+    try {
+      const res = await fetch('/api/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceSlug: WORKSPACE_SLUG,
+          parentAssetId: editingAsset.assetId,
+          instruction,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        // Add to edit history
+        setEditHistory((prev) => [
+          {
+            id: data.editId,
+            assetId: data.childAssetId,
+            url: data.url,
+            instruction,
+            createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+
+        // Update editing asset to the new one
+        setEditingAsset({ assetId: data.childAssetId, url: data.url });
+
+        // Also add to outputs grid
+        setOutputs((prev) => [
+          {
+            id: data.editId,
+            assetId: data.childAssetId,
+            url: data.url,
+          },
+          ...prev,
+        ]);
+
+        setEditInstruction('');
+      } else {
+        alert(data.error || 'Edit failed');
+      }
+    } catch (error) {
+      console.error('Edit error:', error);
+      alert('Edit failed');
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  // Select from edit history
+  const handleSelectFromHistory = (item: EditHistory) => {
+    setEditingAsset({ assetId: item.assetId, url: item.url });
   };
 
   if (loading) {
@@ -338,6 +440,15 @@ export default function GeneratePage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleOpenEdit(output.assetId, output.url);
+                          }}
+                          className="btn-glow px-3 py-1 text-xs"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             handleRefine(output.assetId);
                           }}
                           className="btn-glow px-3 py-1 text-xs"
@@ -360,6 +471,137 @@ export default function GeneratePage() {
           )}
         </div>
       </div>
+
+      {/* Edit Drawer */}
+      {editDrawerOpen && editingAsset && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={handleCloseEdit}
+          />
+
+          {/* Drawer */}
+          <div className="absolute right-0 top-0 h-full w-[500px] bg-[var(--background)] border-l border-[var(--text-inactive)] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-[var(--text-inactive)]">
+              <h2 className="text-sm tracking-[2px] uppercase">Edit Design</h2>
+              <button
+                onClick={handleCloseEdit}
+                className="text-[var(--text-secondary)] hover:text-[var(--foreground)]"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Current Image */}
+              <div className="aspect-[4/5] relative overflow-hidden bg-[var(--background-card)]">
+                <Image
+                  src={editingAsset.url}
+                  alt="Current design"
+                  fill
+                  className="object-contain"
+                  sizes="500px"
+                />
+                {editing && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                    <div className="spinner mb-4" />
+                    <p className="text-sm breathing">Applying edit...</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Custom Instruction */}
+              <div className="glass-card p-4">
+                <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
+                  Edit Instruction
+                </h3>
+                <textarea
+                  value={editInstruction}
+                  onChange={(e) => setEditInstruction(e.target.value)}
+                  placeholder="Describe the change... (e.g., 袖を短くする、色を黒に変更)"
+                  rows={3}
+                  className="w-full bg-[var(--background)] border border-[var(--text-inactive)] px-4 py-3 text-sm focus:border-[var(--accent-cyan)] outline-none resize-none mb-3"
+                  disabled={editing}
+                />
+                <button
+                  onClick={() => handleApplyEdit(editInstruction)}
+                  disabled={!editInstruction.trim() || editing}
+                  className="w-full btn-primary py-2 text-xs tracking-[1px] uppercase disabled:opacity-50"
+                >
+                  Apply Edit
+                </button>
+              </div>
+
+              {/* Quick Edit Presets */}
+              <div className="glass-card p-4">
+                <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
+                  Quick Edits
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {EDIT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      onClick={() => handleApplyEdit(preset.instruction)}
+                      disabled={editing}
+                      className="btn-glow px-2 py-2 text-xs disabled:opacity-50"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Edit History */}
+              {editHistory.length > 0 && (
+                <div className="glass-card p-4">
+                  <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
+                    Edit History ({editHistory.length})
+                  </h3>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {editHistory.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center gap-3 p-2 cursor-pointer hover:bg-[var(--background)] ${
+                          item.assetId === editingAsset.assetId
+                            ? 'border border-[var(--accent-cyan)]'
+                            : ''
+                        }`}
+                        onClick={() => handleSelectFromHistory(item)}
+                      >
+                        <div className="w-10 h-10 relative flex-shrink-0 bg-[var(--background)]">
+                          <Image
+                            src={item.url}
+                            alt={`Edit ${index + 1}`}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        </div>
+                        <p className="text-xs line-clamp-2 flex-1">{item.instruction}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-[var(--text-inactive)]">
+              <button
+                onClick={handleCloseEdit}
+                className="w-full btn-glow py-2 text-xs tracking-[1px] uppercase"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

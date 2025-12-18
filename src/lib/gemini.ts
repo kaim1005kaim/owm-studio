@@ -8,7 +8,7 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 // Model IDs
 const TEXT_MODEL = 'gemini-2.0-flash';
-const IMAGE_MODEL = 'gemini-2.5-flash-preview-05-20'; // Updated for higher quota
+const IMAGE_MODEL = 'gemini-2.5-flash-image'; // Image generation capable model
 
 interface GeminiContent {
   role: 'user' | 'model';

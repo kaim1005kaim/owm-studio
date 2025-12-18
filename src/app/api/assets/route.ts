@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabase();
     const { searchParams } = new URL(request.url);
     const workspaceSlug = searchParams.get('workspaceSlug');
+    const assetId = searchParams.get('assetId');
     const source = searchParams.get('source'); // seed, user_upload
     const collection = searchParams.get('collection');
     const tags = searchParams.get('tags')?.split(',').filter(Boolean);
@@ -29,7 +30,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 
-    // Build query
+    // Single asset fetch by ID (supports both reference and generated)
+    if (assetId) {
+      const { data: asset, error: assetError } = await supabase
+        .from('assets')
+        .select(`
+          *,
+          asset_annotations (
+            caption,
+            tags,
+            silhouette,
+            material,
+            pattern,
+            details,
+            mood,
+            color_palette
+          )
+        `)
+        .eq('id', assetId)
+        .eq('workspace_id', workspace.id)
+        .single();
+
+      if (assetError || !asset) {
+        return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+      }
+
+      const assetWithUrl = {
+        ...asset,
+        url: getPublicUrl(asset.r2_key),
+        thumbUrl: asset.thumb_r2_key ? getPublicUrl(asset.thumb_r2_key) : null,
+        // Flatten annotations if present
+        ...(asset.asset_annotations?.[0] || {}),
+      };
+
+      return NextResponse.json({
+        success: true,
+        assets: [assetWithUrl],
+        total: 1,
+        limit: 1,
+        offset: 0,
+      });
+    }
+
+    // Library fetch (reference assets only)
     let query = supabase
       .from('assets_with_annotations')
       .select('*', { count: 'exact' })
