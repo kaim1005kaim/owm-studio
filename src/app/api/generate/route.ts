@@ -64,8 +64,9 @@ export async function POST(request: NextRequest) {
 
     // Get reference images as base64
     const referenceImages: { base64: string; mimeType: string }[] = [];
-    for (const item of boardItems) {
-      const asset = item.assets as { id: string; r2_key: string; mime: string; status: string };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const item of boardItems as any[]) {
+      const asset = item.assets;
       if (asset.status === 'ready') {
         try {
           const base64 = await getObjectAsBase64(asset.r2_key);
@@ -142,7 +143,7 @@ export async function POST(request: NextRequest) {
           const r2Key = generateR2Key(workspaceSlug, 'gen', assetId, 'png');
 
           // Upload to R2
-          const publicUrl = await uploadBase64ToR2(r2Key, image.data, image.mimeType);
+          const publicUrl = await uploadBase64ToR2(r2Key, image.base64, image.mimeType);
 
           // Create asset record
           const { error: assetError } = await supabase
