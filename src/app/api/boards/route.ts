@@ -96,9 +96,66 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch boards' }, { status: 500 });
       }
 
+      // Fetch generation thumbnails for all boards
+      const boardIds = (boards || []).map((b: { id: string }) => b.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const boardGenPreviews: Record<string, { url: string }[]> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const boardGenCounts: Record<string, number> = {};
+
+      if (boardIds.length > 0) {
+        // Get generations for all boards
+        const { data: allGens } = await supabase
+          .from('generations')
+          .select('id, board_id')
+          .in('board_id', boardIds);
+
+        if (allGens && allGens.length > 0) {
+          const genIds = allGens.map((g: { id: string }) => g.id);
+          const genToBoardMap: Record<string, string> = {};
+          for (const g of allGens) {
+            genToBoardMap[g.id] = g.board_id;
+          }
+
+          // Get outputs with asset r2_keys (limit per query)
+          const { data: allOutputs } = await supabase
+            .from('generation_outputs')
+            .select(`
+              generation_id,
+              assets!inner (
+                r2_key
+              )
+            `)
+            .in('generation_id', genIds);
+
+          if (allOutputs) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const output of allOutputs as any[]) {
+              const bId = genToBoardMap[output.generation_id];
+              if (!bId) continue;
+              if (!boardGenPreviews[bId]) boardGenPreviews[bId] = [];
+              if (!boardGenCounts[bId]) boardGenCounts[bId] = 0;
+              boardGenCounts[bId]++;
+              // Keep up to 12 thumbnails
+              if (boardGenPreviews[bId].length < 12) {
+                boardGenPreviews[bId].push({
+                  url: getPublicUrl(output.assets.r2_key),
+                });
+              }
+            }
+          }
+        }
+      }
+
+      const enrichedBoards = (boards || []).map((b: { id: string }) => ({
+        ...b,
+        generatedImages: boardGenPreviews[b.id] || [],
+        generatedCount: boardGenCounts[b.id] || 0,
+      }));
+
       return NextResponse.json({
         success: true,
-        boards: boards || [],
+        boards: enrichedBoards,
       });
     }
   } catch (error) {

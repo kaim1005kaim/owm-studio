@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -74,6 +74,13 @@ type GarmentCategory =
   | 'onepiece';
 
 type ViewStyle = 'ghost' | 'flatlay';
+type GenderTarget = 'mens' | 'ladies' | 'unisex';
+
+const GENDER_TABS: { value: GenderTarget; label: string }[] = [
+  { value: 'mens', label: 'メンズ' },
+  { value: 'ladies', label: 'レディース' },
+  { value: 'unisex', label: 'ユニセックス' },
+];
 
 const GARMENT_CATEGORIES: { value: GarmentCategory; label: string }[] = [
   { value: 'coat', label: 'コート' },
@@ -117,6 +124,7 @@ export default function GeneratePage() {
   const [generating, setGenerating] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [count, setCount] = useState<4 | 8 | 12>(4);
+  const [gender, setGender] = useState<GenderTarget>('mens');
   const [category, setCategory] = useState<GarmentCategory | ''>('');
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [generationHistory, setGenerationHistory] = useState<GenerationRecord[]>([]);
@@ -136,6 +144,10 @@ export default function GeneratePage() {
   const [viewStyle, setViewStyle] = useState<ViewStyle>('ghost');
   const [generatingViews, setGeneratingViews] = useState(false);
   const [detailResult, setDetailResult] = useState<DetailViewResult | null>(null);
+
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
@@ -190,7 +202,7 @@ export default function GeneratePage() {
         body: JSON.stringify({
           workspaceSlug: WORKSPACE_SLUG,
           boardId,
-          prompt: prompt.trim(),
+          prompt: `[ターゲット: ${gender === 'mens' ? 'メンズ' : gender === 'ladies' ? 'レディース' : 'ユニセックス'}]\n${prompt.trim()}`,
           count,
           aspectRatio: '4:5',
           imageSize: '2K',
@@ -360,6 +372,58 @@ export default function GeneratePage() {
     }
   };
 
+  // Build lightbox image list from detail view
+  const lightboxImages = useMemo(() => {
+    const imgs: { url: string; label: string }[] = [];
+    if (detailAsset) {
+      imgs.push({ url: detailAsset.url, label: '元デザイン' });
+    }
+    if (detailResult) {
+      if (detailResult.heroUrl) {
+        imgs.push({ url: detailResult.heroUrl, label: '着用ルック' });
+      }
+      if (detailResult.garmentViews) {
+        imgs.push({ url: detailResult.garmentViews.frontUrl, label: 'FRONT' });
+        imgs.push({
+          url: detailResult.garmentViews.sideUrl,
+          label: viewStyle === 'ghost' ? 'SIDE' : 'DETAIL',
+        });
+        imgs.push({ url: detailResult.garmentViews.backUrl, label: 'BACK' });
+      }
+    }
+    return imgs;
+  }, [detailAsset, detailResult, viewStyle]);
+
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const lightboxPrev = () => {
+    setLightboxIndex((prev) =>
+      prev > 0 ? prev - 1 : lightboxImages.length - 1
+    );
+  };
+
+  const lightboxNext = () => {
+    setLightboxIndex((prev) =>
+      prev < lightboxImages.length - 1 ? prev + 1 : 0
+    );
+  };
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxOpen(false);
+      if (e.key === 'ArrowLeft') lightboxPrev();
+      if (e.key === 'ArrowRight') lightboxNext();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightboxOpen, lightboxImages.length]);
+
   if (loading) {
     return (
       <div className="min-h-screen pt-20 flex items-center justify-center">
@@ -428,6 +492,28 @@ export default function GeneratePage() {
             <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-4">
               デザイン指示
             </h3>
+
+            {/* Gender Tabs */}
+            <div className="mb-4">
+              <label className="text-xs text-[var(--text-secondary)] mb-2 block">
+                ターゲット
+              </label>
+              <div className="grid grid-cols-3 gap-0 border border-[var(--text-inactive)]">
+                {GENDER_TABS.map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => setGender(tab.value)}
+                    className={`py-2 text-xs tracking-[1px] uppercase transition-colors ${
+                      gender === tab.value
+                        ? 'bg-[var(--accent-cyan)] text-black font-medium'
+                        : 'bg-[var(--background)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Category Selector */}
             <div className="mb-4">
@@ -784,6 +870,94 @@ export default function GeneratePage() {
         </div>
       )}
 
+      {/* Image Lightbox */}
+      {lightboxOpen && lightboxImages.length > 0 && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/90"
+            onClick={() => setLightboxOpen(false)}
+          />
+
+          {/* Image Label */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10">
+            <span className="text-sm tracking-[2px] uppercase text-white/80">
+              {lightboxImages[lightboxIndex]?.label}
+            </span>
+            <span className="text-xs text-white/50 ml-3">
+              {lightboxIndex + 1} / {lightboxImages.length}
+            </span>
+          </div>
+
+          {/* Close Button */}
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-6 right-6 z-10 text-white/60 hover:text-white transition-colors"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Previous Button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); lightboxPrev(); }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {/* Next Button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); lightboxNext(); }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* Main Image */}
+          <div className="relative w-[85vw] h-[85vh] max-w-[1200px]">
+            <Image
+              src={lightboxImages[lightboxIndex]?.url}
+              alt={lightboxImages[lightboxIndex]?.label || ''}
+              fill
+              className="object-contain"
+              sizes="85vw"
+              priority
+            />
+          </div>
+
+          {/* Thumbnail Strip */}
+          {lightboxImages.length > 1 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+              {lightboxImages.map((img, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
+                  className={`w-14 h-14 relative overflow-hidden flex-shrink-0 transition-all ${
+                    i === lightboxIndex
+                      ? 'ring-2 ring-[var(--accent-cyan)] opacity-100'
+                      : 'opacity-50 hover:opacity-80'
+                  }`}
+                >
+                  <Image
+                    src={img.url}
+                    alt={img.label}
+                    fill
+                    className="object-cover"
+                    sizes="56px"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 詳細ビュー Drawer */}
       {detailDrawerOpen && detailAsset && (
         <div className="fixed inset-0 z-50 flex">
@@ -815,7 +989,10 @@ export default function GeneratePage() {
                 <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
                   元デザイン
                 </h3>
-                <div className="aspect-[4/5] relative overflow-hidden bg-[var(--background-card)] max-w-[200px]">
+                <div
+                  className="aspect-[4/5] relative overflow-hidden bg-[var(--background-card)] max-w-[200px] cursor-pointer hover:ring-2 hover:ring-[var(--accent-cyan)] transition-all"
+                  onClick={() => openLightbox(0)}
+                >
                   <Image
                     src={detailAsset.url}
                     alt="元デザイン"
@@ -894,7 +1071,10 @@ export default function GeneratePage() {
                     <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
                       着用ルック
                     </h3>
-                    <div className="aspect-[9/16] relative overflow-hidden bg-[var(--background-card)] max-w-[320px] mx-auto">
+                    <div
+                      className="aspect-[9/16] relative overflow-hidden bg-[var(--background-card)] max-w-[320px] mx-auto cursor-pointer hover:ring-2 hover:ring-[var(--accent-cyan)] transition-all"
+                      onClick={() => openLightbox(1)}
+                    >
                       <Image
                         src={detailResult.heroUrl}
                         alt="着用ルック"
@@ -914,7 +1094,10 @@ export default function GeneratePage() {
                       <div className="grid grid-cols-3 gap-3">
                         <div>
                           <p className="text-xs text-[var(--text-inactive)] mb-1 text-center uppercase">FRONT</p>
-                          <div className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)]">
+                          <div
+                            className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)] cursor-pointer hover:ring-2 hover:ring-[var(--accent-cyan)] transition-all"
+                            onClick={() => openLightbox(2)}
+                          >
                             <Image
                               src={detailResult.garmentViews.frontUrl}
                               alt="フロント"
@@ -928,7 +1111,10 @@ export default function GeneratePage() {
                           <p className="text-xs text-[var(--text-inactive)] mb-1 text-center uppercase">
                             {viewStyle === 'ghost' ? 'SIDE' : 'DETAIL'}
                           </p>
-                          <div className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)]">
+                          <div
+                            className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)] cursor-pointer hover:ring-2 hover:ring-[var(--accent-cyan)] transition-all"
+                            onClick={() => openLightbox(3)}
+                          >
                             <Image
                               src={detailResult.garmentViews.sideUrl}
                               alt="サイド"
@@ -940,7 +1126,10 @@ export default function GeneratePage() {
                         </div>
                         <div>
                           <p className="text-xs text-[var(--text-inactive)] mb-1 text-center uppercase">BACK</p>
-                          <div className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)]">
+                          <div
+                            className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)] cursor-pointer hover:ring-2 hover:ring-[var(--accent-cyan)] transition-all"
+                            onClick={() => openLightbox(4)}
+                          >
                             <Image
                               src={detailResult.garmentViews.backUrl}
                               alt="バック"

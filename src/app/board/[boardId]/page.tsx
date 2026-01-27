@@ -30,6 +30,12 @@ interface Board {
   assets: BoardAsset[];
 }
 
+interface GenerationStats {
+  totalGenerations: number;
+  totalOutputs: number;
+  detailViewCount: number;
+}
+
 export default function BoardDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -41,6 +47,7 @@ export default function BoardDetailPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableAssets, setAvailableAssets] = useState<BoardAsset[]>([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
+  const [genStats, setGenStats] = useState<GenerationStats | null>(null);
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
@@ -54,6 +61,32 @@ export default function BoardDetailPage() {
       console.error('Failed to fetch board:', error);
     } finally {
       setLoading(false);
+    }
+  }, [boardId]);
+
+  const fetchGenerationStats = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/generations?boardId=${boardId}`);
+      const data = await res.json();
+      if (data.success && data.generations) {
+        let totalOutputs = 0;
+        let detailViewCount = 0;
+        for (const gen of data.generations) {
+          totalOutputs += gen.outputs.length;
+          for (const output of gen.outputs) {
+            if (output.detailViews) {
+              detailViewCount++;
+            }
+          }
+        }
+        setGenStats({
+          totalGenerations: data.generations.length,
+          totalOutputs,
+          detailViewCount,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch generation stats:', error);
     }
   }, [boardId]);
 
@@ -77,7 +110,8 @@ export default function BoardDetailPage() {
 
   useEffect(() => {
     fetchBoard();
-  }, [fetchBoard]);
+    fetchGenerationStats();
+  }, [fetchBoard, fetchGenerationStats]);
 
   const handleRemoveFromBoard = async (assetId: string) => {
     try {
@@ -133,7 +167,7 @@ export default function BoardDetailPage() {
   if (!board) {
     return (
       <div className="min-h-screen pt-20 flex items-center justify-center">
-        <p className="text-[var(--text-secondary)]">Board not found</p>
+        <p className="text-[var(--text-secondary)]">ボードが見つかりません</p>
       </div>
     );
   }
@@ -148,11 +182,11 @@ export default function BoardDetailPage() {
               onClick={() => router.push('/board')}
               className="text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] tracking-[1px] uppercase mb-2 flex items-center gap-2"
             >
-              ← Back to Boards
+              ← ボード一覧に戻る
             </button>
             <h1 className="text-2xl tracking-[4px] uppercase mb-2">{board.name}</h1>
             <p className="text-sm text-[var(--text-secondary)]">
-              {board.assets.length} reference images
+              参照画像 {board.assets.length} 枚
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -160,32 +194,68 @@ export default function BoardDetailPage() {
               onClick={openAddModal}
               className="btn-glow px-4 py-2 text-xs tracking-[1px] uppercase"
             >
-              + Add Images
+              + 画像を追加
             </button>
             {board.assets.length >= 3 && (
               <button
                 onClick={() => router.push(`/generate/${board.id}`)}
                 className="btn-primary px-6 py-2 text-xs tracking-[1px] uppercase"
               >
-                Generate Designs →
+                {genStats && genStats.totalOutputs > 0
+                  ? '生成結果を見る →'
+                  : 'デザインを生成 →'}
               </button>
             )}
           </div>
         </div>
       </div>
 
+      {/* Generation Stats */}
+      {genStats && genStats.totalOutputs > 0 && (
+        <div className="max-w-7xl mx-auto mb-6">
+          <div
+            className="glass-card p-4 flex items-center justify-between cursor-pointer hover:border-[var(--accent-cyan)] transition-colors"
+            onClick={() => router.push(`/generate/${board.id}`)}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 rounded-full bg-[var(--accent-cyan)]/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-[var(--accent-cyan)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm">
+                  生成済みデザイン <span className="text-[var(--accent-cyan)] font-medium">{genStats.totalOutputs}案</span>
+                  {genStats.detailViewCount > 0 && (
+                    <span className="ml-3">
+                      詳細ビュー <span className="text-[var(--accent-cyan)] font-medium">{genStats.detailViewCount}件</span>
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  クリックして生成結果を確認
+                </p>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      )}
+
       {/* Board Assets */}
       <div className="max-w-7xl mx-auto">
         {board.assets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <p className="text-[var(--text-secondary)] mb-4">
-              Add at least 3 reference images to generate designs
+              デザイン生成には参照画像が3枚以上必要です
             </p>
             <button
               onClick={openAddModal}
               className="btn-glow px-4 py-2 text-xs tracking-[1px] uppercase"
             >
-              Add Images
+              画像を追加
             </button>
           </div>
         ) : (
@@ -212,7 +282,7 @@ export default function BoardDetailPage() {
                       onClick={() => handleRemoveFromBoard(asset.id)}
                       className="text-[var(--accent-crimson)] text-xs hover:text-[var(--foreground)] tracking-[1px] uppercase"
                     >
-                      Remove
+                      削除
                     </button>
                   </div>
                 </div>
@@ -258,8 +328,7 @@ export default function BoardDetailPage() {
               />
             </svg>
             <p className="text-sm text-[var(--text-secondary)]">
-              Add at least <span className="text-[var(--accent-amber)]">{3 - board.assets.length} more</span> images
-              to enable design generation
+              あと<span className="text-[var(--accent-amber)]"> {3 - board.assets.length}枚</span>追加するとデザイン生成が可能になります
             </p>
           </div>
         </div>
@@ -274,7 +343,7 @@ export default function BoardDetailPage() {
           />
           <div className="relative glass-card w-full max-w-4xl mx-4 p-6 fade-in max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg tracking-[2px] uppercase">Add Reference Images</h2>
+              <h2 className="text-lg tracking-[2px] uppercase">参照画像を追加</h2>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="text-[var(--text-secondary)] hover:text-[var(--foreground)]"
@@ -293,7 +362,7 @@ export default function BoardDetailPage() {
               ) : availableAssets.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64">
                   <p className="text-[var(--text-secondary)] mb-4">
-                    No more images available
+                    追加可能な画像がありません
                   </p>
                   <button
                     onClick={() => {
@@ -302,7 +371,7 @@ export default function BoardDetailPage() {
                     }}
                     className="btn-glow px-4 py-2 text-xs tracking-[1px] uppercase"
                   >
-                    Upload More
+                    画像をアップロード
                   </button>
                 </div>
               ) : (
@@ -333,13 +402,13 @@ export default function BoardDetailPage() {
             {selectedAssets.length > 0 && (
               <div className="mt-6 flex items-center justify-between pt-4 border-t border-[var(--text-inactive)]">
                 <span className="text-sm text-[var(--text-secondary)]">
-                  {selectedAssets.length} selected
+                  {selectedAssets.length}枚 選択中
                 </span>
                 <button
                   onClick={() => handleAddToBoard(selectedAssets)}
                   className="btn-primary px-6 py-2 text-xs tracking-[1px] uppercase"
                 >
-                  Add to Board
+                  ボードに追加
                 </button>
               </div>
             )}
