@@ -24,6 +24,7 @@ interface GeneratedOutput {
   url: string;
   liked?: boolean;
   score?: number;
+  detailViews?: DetailViewResult | null;
 }
 
 interface EditHistory {
@@ -35,16 +36,30 @@ interface EditHistory {
 }
 
 interface DetailViewResult {
-  heroAssetId: string;
+  heroAssetId?: string;
   heroUrl: string;
   garmentViews: {
-    frontAssetId: string;
+    frontAssetId?: string;
     frontUrl: string;
-    sideAssetId: string;
+    sideAssetId?: string;
     sideUrl: string;
-    backAssetId: string;
+    backAssetId?: string;
     backUrl: string;
+    viewStyle?: string;
   } | null;
+}
+
+interface GenerationRecord {
+  id: string;
+  prompt: string;
+  config: {
+    count: number;
+    aspectRatio: string;
+    imageSize: string;
+    category?: string;
+  };
+  createdAt: string;
+  outputs: GeneratedOutput[];
 }
 
 type GarmentCategory =
@@ -104,6 +119,7 @@ export default function GeneratePage() {
   const [count, setCount] = useState<4 | 8 | 12>(4);
   const [category, setCategory] = useState<GarmentCategory | ''>('');
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
+  const [generationHistory, setGenerationHistory] = useState<GenerationRecord[]>([]);
   const [inspiration, setInspiration] = useState('');
   const [selectedOutputs, setSelectedOutputs] = useState<string[]>([]);
 
@@ -136,16 +152,36 @@ export default function GeneratePage() {
     }
   }, [boardId]);
 
+  // Fetch generation history for this board
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/generations?boardId=${boardId}`);
+      const data = await res.json();
+      if (data.success && data.generations) {
+        setGenerationHistory(data.generations);
+        // Flatten all outputs from history into the outputs array
+        const allOutputs: GeneratedOutput[] = [];
+        for (const gen of data.generations) {
+          for (const output of gen.outputs) {
+            allOutputs.push(output);
+          }
+        }
+        setOutputs(allOutputs);
+      }
+    } catch (error) {
+      console.error('Failed to fetch generation history:', error);
+    }
+  }, [boardId]);
+
   useEffect(() => {
     fetchBoard();
-  }, [fetchBoard]);
+    fetchHistory();
+  }, [fetchBoard, fetchHistory]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
     setGenerating(true);
-    setOutputs([]);
-    setInspiration('');
 
     try {
       const res = await fetch('/api/generate', {
@@ -164,14 +200,19 @@ export default function GeneratePage() {
 
       const data = await res.json();
       if (data.success) {
-        setOutputs(data.outputs);
+        // Prepend new outputs to existing
+        const newOutputs: GeneratedOutput[] = data.outputs.map((o: GeneratedOutput) => ({
+          ...o,
+          detailViews: null,
+        }));
+        setOutputs((prev) => [...newOutputs, ...prev]);
         setInspiration(data.inspiration || '');
       } else {
-        alert(data.error || 'Generation failed');
+        alert(data.error || '生成に失敗しました');
       }
     } catch (error) {
       console.error('Generation error:', error);
-      alert('Generation failed');
+      alert('生成に失敗しました');
     } finally {
       setGenerating(false);
     }
@@ -187,7 +228,7 @@ export default function GeneratePage() {
     router.push(`/refine/${assetId}`);
   };
 
-  // Open edit drawer
+  // Open edit drawer (REMIX)
   const handleOpenEdit = (assetId: string, url: string) => {
     setEditingAsset({ assetId, url });
     setEditDrawerOpen(true);
@@ -202,7 +243,7 @@ export default function GeneratePage() {
     setEditInstruction('');
   };
 
-  // Apply edit
+  // Apply edit (REMIX)
   const handleApplyEdit = async (instruction: string) => {
     if (!instruction.trim() || !editingAsset) return;
 
@@ -244,11 +285,11 @@ export default function GeneratePage() {
 
         setEditInstruction('');
       } else {
-        alert(data.error || 'Edit failed');
+        alert(data.error || 'REMIX に失敗しました');
       }
     } catch (error) {
       console.error('Edit error:', error);
-      alert('Edit failed');
+      alert('REMIX に失敗しました');
     } finally {
       setEditing(false);
     }
@@ -261,9 +302,15 @@ export default function GeneratePage() {
 
   // Open detail view drawer
   const handleOpenDetailView = (assetId: string, url: string) => {
+    // Check if this output already has detail views from history
+    const existingOutput = outputs.find((o) => o.assetId === assetId);
+    if (existingOutput?.detailViews) {
+      setDetailResult(existingOutput.detailViews);
+    } else {
+      setDetailResult(null);
+    }
     setDetailAsset({ assetId, url });
     setDetailDrawerOpen(true);
-    setDetailResult(null);
     setViewStyle('ghost');
   };
 
@@ -274,7 +321,7 @@ export default function GeneratePage() {
     setDetailResult(null);
   };
 
-  // Generate detail views (hero + garment 3-view)
+  // Generate detail views (着用ルック + garment 3-view)
   const handleGenerateViews = async () => {
     if (!detailAsset) return;
 
@@ -292,17 +339,26 @@ export default function GeneratePage() {
 
       const data = await res.json();
       if (data.success) {
-        setDetailResult({
+        const result: DetailViewResult = {
           heroAssetId: data.heroAssetId,
           heroUrl: data.heroUrl,
           garmentViews: data.garmentViews,
-        });
+        };
+        setDetailResult(result);
+        // Update the output's detailViews so it persists in local state
+        setOutputs((prev) =>
+          prev.map((o) =>
+            o.assetId === detailAsset.assetId
+              ? { ...o, detailViews: result }
+              : o
+          )
+        );
       } else {
-        alert(data.error || 'Detail generation failed');
+        alert(data.error || '詳細ビュー生成に失敗しました');
       }
     } catch (error) {
       console.error('Detail generation error:', error);
-      alert('Detail generation failed');
+      alert('詳細ビュー生成に失敗しました');
     } finally {
       setGeneratingViews(false);
     }
@@ -320,13 +376,13 @@ export default function GeneratePage() {
     return (
       <div className="min-h-screen pt-20 flex flex-col items-center justify-center">
         <p className="text-[var(--text-secondary)] mb-4">
-          Board needs at least 3 reference images
+          ボードには最低3枚のリファレンス画像が必要です
         </p>
         <button
           onClick={() => router.push(`/board/${boardId}`)}
           className="btn-glow px-4 py-2 text-xs tracking-[1px] uppercase"
         >
-          Back to Board
+          ボードに戻る
         </button>
       </div>
     );
@@ -340,11 +396,11 @@ export default function GeneratePage() {
           onClick={() => router.push(`/board/${boardId}`)}
           className="text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] tracking-[1px] uppercase mb-2 flex items-center gap-2"
         >
-          &larr; Back to {board.name}
+          &larr; {board.name} に戻る
         </button>
-        <h1 className="text-2xl tracking-[4px] uppercase mb-2">Generate Designs</h1>
+        <h1 className="text-2xl tracking-[4px] uppercase mb-2">GENERATE</h1>
         <p className="text-sm text-[var(--text-secondary)]">
-          Create new design variations based on your reference images
+          リファレンス画像をもとに新しいデザインバリエーションを生成します
         </p>
       </div>
 
@@ -354,7 +410,7 @@ export default function GeneratePage() {
           {/* Reference Preview */}
           <div className="glass-card p-4">
             <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-4">
-              Reference Images ({board.assets.length})
+              リファレンス画像 ({board.assets.length})
             </h3>
             <div className="grid grid-cols-4 gap-2">
               {board.assets.slice(0, 8).map((asset) => (
@@ -374,23 +430,23 @@ export default function GeneratePage() {
           {/* Prompt Input */}
           <div className="glass-card p-4">
             <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-4">
-              Design Direction
+              デザイン指示
             </h3>
 
             {/* Category Selector */}
             <div className="mb-4">
               <label className="text-xs text-[var(--text-secondary)] mb-2 block">
-                MD Category
+                MD カテゴリー
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as GarmentCategory | '')}
                 className="w-full bg-[var(--background)] border border-[var(--text-inactive)] px-4 py-2 text-sm focus:border-[var(--accent-cyan)] outline-none appearance-none cursor-pointer"
               >
-                <option value="">All Categories</option>
+                <option value="">すべてのカテゴリー</option>
                 {GARMENT_CATEGORIES.map((cat) => (
                   <option key={cat.value} value={cat.value}>
-                    {cat.label} ({cat.value})
+                    {cat.label}
                   </option>
                 ))}
               </select>
@@ -399,7 +455,7 @@ export default function GeneratePage() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the design direction..."
+              placeholder="デザインの方向性を記述してください..."
               rows={4}
               className="w-full bg-[var(--background)] border border-[var(--text-inactive)] px-4 py-3 text-sm focus:border-[var(--accent-cyan)] outline-none resize-none mb-4"
             />
@@ -419,7 +475,7 @@ export default function GeneratePage() {
 
             {/* Count Selection */}
             <div className="flex items-center gap-4 mb-4">
-              <span className="text-xs text-[var(--text-secondary)]">Generate:</span>
+              <span className="text-xs text-[var(--text-secondary)]">生成枚数:</span>
               {([4, 8, 12] as const).map((c) => (
                 <button
                   key={c}
@@ -444,10 +500,10 @@ export default function GeneratePage() {
               {generating ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="spinner w-4 h-4" />
-                  Generating...
+                  生成中...
                 </span>
               ) : (
-                `Generate ${count} Designs`
+                `${count}案 生成する`
               )}
             </button>
           </div>
@@ -456,7 +512,7 @@ export default function GeneratePage() {
           {inspiration && (
             <div className="glass-card p-4">
               <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-2">
-                AI Inspiration
+                AI インスピレーション
               </h3>
               <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">
                 {inspiration}
@@ -471,10 +527,10 @@ export default function GeneratePage() {
             <div className="flex flex-col items-center justify-center h-96">
               <div className="spinner mb-4" />
               <p className="text-sm text-[var(--text-secondary)] breathing">
-                Generating {count} design variations...
+                {count}案のデザインバリエーションを生成中...
               </p>
               <p className="text-xs text-[var(--text-inactive)] mt-2">
-                This may take a few minutes
+                生成には数分かかります
               </p>
             </div>
           ) : outputs.length === 0 ? (
@@ -493,7 +549,10 @@ export default function GeneratePage() {
                 />
               </svg>
               <p className="text-[var(--text-secondary)]">
-                Enter a design direction and generate
+                デザインの方向性を入力して生成してください
+              </p>
+              <p className="text-xs text-[var(--text-inactive)] mt-2">
+                リファレンス画像をもとにAIが新しいデザイン案を提案します
               </p>
             </div>
           ) : (
@@ -502,17 +561,17 @@ export default function GeneratePage() {
               {selectedOutputs.length > 0 && (
                 <div className="mb-4 flex items-center justify-between glass-card p-3">
                   <span className="text-sm text-[var(--text-secondary)]">
-                    {selectedOutputs.length} selected
+                    {selectedOutputs.length}件選択中
                   </span>
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => setSelectedOutputs([])}
                       className="text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)]"
                     >
-                      Clear
+                      解除
                     </button>
                     <button className="btn-glow-amber px-4 py-2 text-xs tracking-[1px] uppercase">
-                      Export Selected
+                      エクスポート
                     </button>
                   </div>
                 </div>
@@ -533,11 +592,18 @@ export default function GeneratePage() {
                     <div className="aspect-[4/5] relative overflow-hidden bg-[var(--background-card)]">
                       <Image
                         src={output.url}
-                        alt="Generated design"
+                        alt="生成デザイン"
                         fill
                         className="object-cover image-hover"
                         sizes="25vw"
                       />
+
+                      {/* Detail views indicator */}
+                      {output.detailViews && (
+                        <div className="absolute top-2 left-2 bg-[var(--accent-amber)]/80 px-1.5 py-0.5 text-[10px] text-black font-medium tracking-wide">
+                          詳細あり
+                        </div>
+                      )}
 
                       {/* Selection Indicator */}
                       {selectedOutputs.includes(output.id) && (
@@ -555,27 +621,27 @@ export default function GeneratePage() {
                             e.stopPropagation();
                             handleOpenDetailView(output.assetId, output.url);
                           }}
-                          className="btn-glow-amber px-4 py-1.5 text-xs w-28 text-center"
+                          className="btn-glow-amber px-4 py-1.5 text-xs w-32 text-center"
                         >
-                          Detail View
+                          詳細ビュー
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenEdit(output.assetId, output.url);
                           }}
-                          className="btn-glow px-4 py-1.5 text-xs w-28 text-center"
+                          className="btn-glow px-4 py-1.5 text-xs w-32 text-center"
                         >
-                          Edit
+                          REMIX
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRefine(output.assetId);
                           }}
-                          className="btn-glow px-4 py-1.5 text-xs w-28 text-center"
+                          className="btn-glow px-4 py-1.5 text-xs w-32 text-center"
                         >
-                          Refine
+                          リファイン
                         </button>
                       </div>
                     </div>
@@ -586,7 +652,7 @@ export default function GeneratePage() {
               {/* Results Summary */}
               <div className="mt-6 text-center">
                 <p className="text-sm text-[var(--text-secondary)]">
-                  {outputs.length} designs generated
+                  {outputs.length}件のデザインが生成されました
                 </p>
               </div>
             </>
@@ -594,7 +660,7 @@ export default function GeneratePage() {
         </div>
       </div>
 
-      {/* Edit Drawer */}
+      {/* REMIX Drawer */}
       {editDrawerOpen && editingAsset && (
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop */}
@@ -607,7 +673,7 @@ export default function GeneratePage() {
           <div className="absolute right-0 top-0 h-full w-[500px] bg-[var(--background)] border-l border-[var(--text-inactive)] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-[var(--text-inactive)]">
-              <h2 className="text-sm tracking-[2px] uppercase">Edit Design</h2>
+              <h2 className="text-sm tracking-[2px] uppercase">REMIX</h2>
               <button
                 onClick={handleCloseEdit}
                 className="text-[var(--text-secondary)] hover:text-[var(--foreground)]"
@@ -624,7 +690,7 @@ export default function GeneratePage() {
               <div className="aspect-[4/5] relative overflow-hidden bg-[var(--background-card)]">
                 <Image
                   src={editingAsset.url}
-                  alt="Current design"
+                  alt="現在のデザイン"
                   fill
                   className="object-contain"
                   sizes="500px"
@@ -632,7 +698,7 @@ export default function GeneratePage() {
                 {editing && (
                   <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
                     <div className="spinner mb-4" />
-                    <p className="text-sm breathing">Applying edit...</p>
+                    <p className="text-sm breathing">REMIX 適用中...</p>
                   </div>
                 )}
               </div>
@@ -640,12 +706,15 @@ export default function GeneratePage() {
               {/* Custom Instruction */}
               <div className="glass-card p-4">
                 <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
-                  Edit Instruction
+                  変更指示
                 </h3>
+                <p className="text-xs text-[var(--text-inactive)] mb-2">
+                  デザインの一部を変更する指示を入力してください
+                </p>
                 <textarea
                   value={editInstruction}
                   onChange={(e) => setEditInstruction(e.target.value)}
-                  placeholder="Describe the change... (e.g., 袖を短くする、色を黒に変更)"
+                  placeholder="例: 袖を短くする、色を黒に変更、素材をレザーに..."
                   rows={3}
                   className="w-full bg-[var(--background)] border border-[var(--text-inactive)] px-4 py-3 text-sm focus:border-[var(--accent-cyan)] outline-none resize-none mb-3"
                   disabled={editing}
@@ -655,15 +724,18 @@ export default function GeneratePage() {
                   disabled={!editInstruction.trim() || editing}
                   className="w-full btn-primary py-2 text-xs tracking-[1px] uppercase disabled:opacity-50"
                 >
-                  Apply Edit
+                  REMIX を適用
                 </button>
               </div>
 
               {/* Quick Edit Presets */}
               <div className="glass-card p-4">
                 <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
-                  Quick Edits
+                  クイック REMIX
                 </h3>
+                <p className="text-xs text-[var(--text-inactive)] mb-2">
+                  ワンタップで素早く変更を適用できます
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                   {EDIT_PRESETS.map((preset) => (
                     <button
@@ -682,7 +754,7 @@ export default function GeneratePage() {
               {editHistory.length > 0 && (
                 <div className="glass-card p-4">
                   <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
-                    Edit History ({editHistory.length})
+                    REMIX 履歴 ({editHistory.length})
                   </h3>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {editHistory.map((item, index) => (
@@ -698,7 +770,7 @@ export default function GeneratePage() {
                         <div className="w-10 h-10 relative flex-shrink-0 bg-[var(--background)]">
                           <Image
                             src={item.url}
-                            alt={`Edit ${index + 1}`}
+                            alt={`REMIX ${index + 1}`}
                             fill
                             className="object-cover"
                             sizes="40px"
@@ -718,14 +790,14 @@ export default function GeneratePage() {
                 onClick={handleCloseEdit}
                 className="w-full btn-glow py-2 text-xs tracking-[1px] uppercase"
               >
-                Done
+                完了
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Detail View Drawer */}
+      {/* 詳細ビュー Drawer */}
       {detailDrawerOpen && detailAsset && (
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop */}
@@ -738,7 +810,7 @@ export default function GeneratePage() {
           <div className="absolute right-0 top-0 h-full w-[720px] bg-[var(--background)] border-l border-[var(--text-inactive)] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-[var(--text-inactive)]">
-              <h2 className="text-sm tracking-[2px] uppercase">Detail View Generation</h2>
+              <h2 className="text-sm tracking-[2px] uppercase">詳細ビュー生成</h2>
               <button
                 onClick={handleCloseDetailView}
                 className="text-[var(--text-secondary)] hover:text-[var(--foreground)]"
@@ -754,12 +826,12 @@ export default function GeneratePage() {
               {/* Source Design */}
               <div className="glass-card p-4">
                 <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
-                  Source Design
+                  元デザイン
                 </h3>
                 <div className="aspect-[4/5] relative overflow-hidden bg-[var(--background-card)] max-w-[200px]">
                   <Image
                     src={detailAsset.url}
-                    alt="Source design"
+                    alt="元デザイン"
                     fill
                     className="object-contain"
                     sizes="200px"
@@ -771,8 +843,11 @@ export default function GeneratePage() {
               {!detailResult && (
                 <div className="glass-card p-4">
                   <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
-                    Garment View Style
+                    ガーメント撮影スタイル
                   </h3>
+                  <p className="text-xs text-[var(--text-inactive)] mb-3">
+                    3面図の撮影スタイルを選択してください
+                  </p>
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <button
                       onClick={() => setViewStyle('ghost')}
@@ -782,9 +857,9 @@ export default function GeneratePage() {
                           : 'border-[var(--text-inactive)] hover:border-[var(--text-secondary)]'
                       }`}
                     >
-                      <div className="text-sm font-medium mb-1">Ghost Mannequin</div>
+                      <div className="text-sm font-medium mb-1">ゴーストマネキン</div>
                       <div className="text-xs text-[var(--text-secondary)]">
-                        Invisible mannequin style. 3D shape with no visible body.
+                        透明マネキン撮影。服が立体的に見え、人物は非表示。
                       </div>
                     </button>
                     <button
@@ -795,9 +870,9 @@ export default function GeneratePage() {
                           : 'border-[var(--text-inactive)] hover:border-[var(--text-secondary)]'
                       }`}
                     >
-                      <div className="text-sm font-medium mb-1">Flat Lay</div>
+                      <div className="text-sm font-medium mb-1">フラットレイ</div>
                       <div className="text-xs text-[var(--text-secondary)]">
-                        Overhead product shot. Garment laid flat on white surface.
+                        平置き撮影。白い台の上にガーメントを置いた俯瞰ショット。
                       </div>
                     </button>
                   </div>
@@ -810,15 +885,15 @@ export default function GeneratePage() {
                     {generatingViews ? (
                       <span className="flex items-center justify-center gap-2">
                         <div className="spinner w-4 h-4" />
-                        Generating Views...
+                        生成中...
                       </span>
                     ) : (
-                      'Generate Hero + 3-View'
+                      '着用ルック + 3面図を生成'
                     )}
                   </button>
                   {generatingViews && (
                     <p className="text-xs text-[var(--text-inactive)] mt-2 text-center">
-                      Generating hero shot and garment spec sheet...
+                      着用ルックとガーメント3面図を生成中...
                     </p>
                   )}
                 </div>
@@ -827,15 +902,15 @@ export default function GeneratePage() {
               {/* Results */}
               {detailResult && (
                 <>
-                  {/* Hero Shot */}
+                  {/* 着用ルック */}
                   <div className="glass-card p-4">
                     <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
-                      Hero Shot (Editorial)
+                      着用ルック
                     </h3>
                     <div className="aspect-[9/16] relative overflow-hidden bg-[var(--background-card)] max-w-[320px] mx-auto">
                       <Image
                         src={detailResult.heroUrl}
-                        alt="Hero shot"
+                        alt="着用ルック"
                         fill
                         className="object-contain"
                         sizes="320px"
@@ -847,15 +922,15 @@ export default function GeneratePage() {
                   {detailResult.garmentViews && (
                     <div className="glass-card p-4">
                       <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
-                        Garment Views ({viewStyle === 'ghost' ? 'Ghost Mannequin' : 'Flat Lay'})
+                        GARMENT VIEWS ({viewStyle === 'ghost' ? 'ゴーストマネキン' : 'フラットレイ'})
                       </h3>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <p className="text-xs text-[var(--text-inactive)] mb-1 text-center uppercase">Front</p>
+                          <p className="text-xs text-[var(--text-inactive)] mb-1 text-center uppercase">FRONT</p>
                           <div className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)]">
                             <Image
                               src={detailResult.garmentViews.frontUrl}
-                              alt="Front view"
+                              alt="フロント"
                               fill
                               className="object-contain"
                               sizes="200px"
@@ -864,12 +939,12 @@ export default function GeneratePage() {
                         </div>
                         <div>
                           <p className="text-xs text-[var(--text-inactive)] mb-1 text-center uppercase">
-                            {viewStyle === 'ghost' ? 'Side' : 'Detail'}
+                            {viewStyle === 'ghost' ? 'SIDE' : 'DETAIL'}
                           </p>
                           <div className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)]">
                             <Image
                               src={detailResult.garmentViews.sideUrl}
-                              alt="Side/Detail view"
+                              alt="サイド"
                               fill
                               className="object-contain"
                               sizes="200px"
@@ -877,11 +952,11 @@ export default function GeneratePage() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs text-[var(--text-inactive)] mb-1 text-center uppercase">Back</p>
+                          <p className="text-xs text-[var(--text-inactive)] mb-1 text-center uppercase">BACK</p>
                           <div className="aspect-[3/4] relative overflow-hidden bg-[var(--background-card)]">
                             <Image
                               src={detailResult.garmentViews.backUrl}
-                              alt="Back view"
+                              alt="バック"
                               fill
                               className="object-contain"
                               sizes="200px"
@@ -897,7 +972,7 @@ export default function GeneratePage() {
                     onClick={() => setDetailResult(null)}
                     className="w-full btn-glow py-2 text-xs tracking-[1px] uppercase"
                   >
-                    Generate Again
+                    もう一度生成
                   </button>
                 </>
               )}
@@ -909,7 +984,7 @@ export default function GeneratePage() {
                 onClick={handleCloseDetailView}
                 className="w-full btn-glow py-2 text-xs tracking-[1px] uppercase"
               >
-                Done
+                完了
               </button>
             </div>
           </div>
