@@ -989,17 +989,41 @@ export default function GeneratePage() {
                 <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-3">
                   元デザイン
                 </h3>
-                <div
-                  className="aspect-[4/5] relative overflow-hidden bg-[var(--background-card)] max-w-[200px] cursor-pointer hover:ring-2 hover:ring-[var(--accent-cyan)] transition-all"
-                  onClick={() => openLightbox(0)}
-                >
-                  <Image
-                    src={detailAsset.url}
-                    alt="元デザイン"
-                    fill
-                    className="object-contain"
-                    sizes="200px"
-                  />
+                <div className="flex gap-4">
+                  <div
+                    className="aspect-[4/5] relative overflow-hidden bg-[var(--background-card)] w-[140px] flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-[var(--accent-cyan)] transition-all"
+                    onClick={() => openLightbox(0)}
+                  >
+                    <Image
+                      src={detailAsset.url}
+                      alt="元デザイン"
+                      fill
+                      className="object-contain"
+                      sizes="140px"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-3">
+                    <div>
+                      <p className="text-[10px] tracking-[1px] uppercase text-[var(--text-inactive)] mb-1">ターゲット</p>
+                      <p className="text-sm">
+                        {GENDER_TABS.find((t) => t.value === gender)?.label || gender}
+                      </p>
+                    </div>
+                    {prompt && (
+                      <div>
+                        <p className="text-[10px] tracking-[1px] uppercase text-[var(--text-inactive)] mb-1">プロンプト</p>
+                        <p className="text-xs text-[var(--text-secondary)] line-clamp-4 whitespace-pre-wrap">{prompt}</p>
+                      </div>
+                    )}
+                    {category && (
+                      <div>
+                        <p className="text-[10px] tracking-[1px] uppercase text-[var(--text-inactive)] mb-1">カテゴリ</p>
+                        <p className="text-sm">
+                          {GARMENT_CATEGORIES.find((c) => c.value === category)?.label || category}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
