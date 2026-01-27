@@ -170,7 +170,8 @@ export default function BoardListPage() {
                             alt={`生成デザイン ${i + 1}`}
                             fill
                             className="object-cover"
-                            sizes="120px"
+                            sizes="(max-width: 768px) 25vw, 15vw"
+                            quality={85}
                           />
                         </div>
                       ))}
