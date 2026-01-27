@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
-  { href: '/library', label: 'LIBRARY', subtitle: 'Reference Archive' },
-  { href: '/board', label: 'MOODBOARD', subtitle: 'Reference Sets' },
+  { href: '/library', label: 'LIBRARY' },
+  { href: '/board', label: 'MOODBOARD' },
 ];
 
 export default function Navigation() {
@@ -33,7 +33,8 @@ export default function Navigation() {
           {/* Navigation Links */}
           <div className="flex items-center gap-8">
             {navItems.map((item) => {
-              const isActive = pathname.startsWith(item.href);
+              const isActive = pathname.startsWith(item.href) ||
+                (item.href === '/board' && pathname.startsWith('/generate'));
               return (
                 <Link
                   key={item.href}
@@ -51,7 +52,7 @@ export default function Navigation() {
             href="/library?upload=true"
             className="btn-glow px-4 py-2 text-xs tracking-[1px] uppercase"
           >
-            + Upload
+            + アップロード
           </Link>
         </div>
       </div>

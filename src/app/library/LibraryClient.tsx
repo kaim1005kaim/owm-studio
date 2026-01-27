@@ -4,8 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ImageGrid from '@/components/ImageGrid';
 import UploadModal from '@/components/UploadModal';
+import BoardSelectModal from '@/components/BoardSelectModal';
+import { useToast } from '@/components/Toast';
 
 const WORKSPACE_SLUG = 'maison_demo';
+const PAGE_TITLE = 'ライブラリ - MAISON SPECIAL';
 
 interface Asset {
   id: string;
@@ -32,7 +35,9 @@ interface Filters {
 export default function LibraryClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const toast = useToast();
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [showBoardSelect, setShowBoardSelect] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filters, setFilters] = useState<Filters | null>(null);
@@ -86,6 +91,10 @@ export default function LibraryClient() {
   };
 
   useEffect(() => {
+    document.title = PAGE_TITLE;
+  }, []);
+
+  useEffect(() => {
     fetchAssets();
   }, [fetchAssets]);
 
@@ -99,9 +108,13 @@ export default function LibraryClient() {
     );
   };
 
-  const handleAddToBoard = async () => {
-    // TODO: Open board selection modal
-    router.push(`/board?add=${selectedIds.join(',')}`);
+  const handleAddToBoard = () => {
+    setShowBoardSelect(true);
+  };
+
+  const handleBoardAddComplete = () => {
+    toast.success(`${selectedIds.length}枚をボードに追加しました`);
+    setSelectedIds([]);
   };
 
   const handleFilterChange = (key: string, value: string | string[] | undefined) => {
@@ -117,9 +130,9 @@ export default function LibraryClient() {
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl tracking-[4px] uppercase mb-2">Library</h1>
+            <h1 className="text-2xl tracking-[4px] uppercase mb-2">LIBRARY</h1>
             <p className="text-sm text-[var(--text-secondary)]">
-              Reference image archive for design generation
+              デザイン生成のための参照画像アーカイブ
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -128,14 +141,14 @@ export default function LibraryClient() {
                 onClick={handleAddToBoard}
                 className="btn-glow-amber px-4 py-2 text-xs tracking-[1px] uppercase"
               >
-                Add to Board ({selectedIds.length})
+                ボードに追加 ({selectedIds.length})
               </button>
             )}
             <button
               onClick={() => setShowUpload(true)}
               className="btn-glow px-4 py-2 text-xs tracking-[1px] uppercase"
             >
-              + Upload
+              + アップロード
             </button>
           </div>
         </div>
@@ -150,9 +163,9 @@ export default function LibraryClient() {
             onChange={(e) => handleFilterChange('source', e.target.value || undefined)}
             className="bg-[var(--background-card)] border border-[var(--text-inactive)] px-3 py-2 text-xs uppercase tracking-[1px]"
           >
-            <option value="">All Sources</option>
-            <option value="seed">Seed</option>
-            <option value="user_upload">User Upload</option>
+            <option value="">すべてのソース</option>
+            <option value="seed">シード</option>
+            <option value="user_upload">ユーザーアップロード</option>
           </select>
 
           {/* Collection Filter */}
@@ -162,7 +175,7 @@ export default function LibraryClient() {
               onChange={(e) => handleFilterChange('collection', e.target.value || undefined)}
               className="bg-[var(--background-card)] border border-[var(--text-inactive)] px-3 py-2 text-xs uppercase tracking-[1px]"
             >
-              <option value="">All Collections</option>
+              <option value="">すべてのコレクション</option>
               {filters.collections.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -178,7 +191,7 @@ export default function LibraryClient() {
               onChange={(e) => handleFilterChange('silhouette', e.target.value || undefined)}
               className="bg-[var(--background-card)] border border-[var(--text-inactive)] px-3 py-2 text-xs uppercase tracking-[1px]"
             >
-              <option value="">All Silhouettes</option>
+              <option value="">すべてのシルエット</option>
               {filters.silhouettes.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -194,7 +207,7 @@ export default function LibraryClient() {
               onChange={(e) => handleFilterChange('mood', e.target.value || undefined)}
               className="bg-[var(--background-card)] border border-[var(--text-inactive)] px-3 py-2 text-xs uppercase tracking-[1px]"
             >
-              <option value="">All Moods</option>
+              <option value="">すべてのムード</option>
               {filters.moods.map((m) => (
                 <option key={m} value={m}>
                   {m}
@@ -209,13 +222,13 @@ export default function LibraryClient() {
               onClick={() => setActiveFilters({})}
               className="text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] tracking-[1px] uppercase"
             >
-              Clear Filters
+              フィルター解除
             </button>
           )}
 
           {/* Results Count */}
           <span className="text-xs text-[var(--text-inactive)] ml-auto">
-            {assets.length} images
+            {assets.length}枚
           </span>
         </div>
       </div>
@@ -223,8 +236,10 @@ export default function LibraryClient() {
       {/* Image Grid */}
       <div className="max-w-7xl mx-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="spinner" />
+          <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="aspect-[3/4] skeleton" />
+            ))}
           </div>
         ) : assets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -241,12 +256,12 @@ export default function LibraryClient() {
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <p className="text-[var(--text-secondary)] mb-4">No images found</p>
+            <p className="text-[var(--text-secondary)] mb-4">画像が見つかりません</p>
             <button
               onClick={() => setShowUpload(true)}
               className="btn-glow px-4 py-2 text-xs tracking-[1px] uppercase"
             >
-              Upload Images
+              画像をアップロード
             </button>
           </div>
         ) : (
@@ -271,6 +286,14 @@ export default function LibraryClient() {
           fetchAssets();
           fetchFilters();
         }}
+      />
+
+      {/* Board Select Modal */}
+      <BoardSelectModal
+        isOpen={showBoardSelect}
+        onClose={() => setShowBoardSelect(false)}
+        selectedAssetIds={selectedIds}
+        onComplete={handleBoardAddComplete}
       />
     </div>
   );

@@ -108,7 +108,7 @@ export default function UploadModal({
       <div className="relative glass-card w-full max-w-lg mx-4 p-6 fade-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg tracking-[2px] uppercase">Upload Images</h2>
+          <h2 className="text-lg tracking-[2px] uppercase">画像アップロード</h2>
           {!uploading && (
             <button
               onClick={onClose}
@@ -135,7 +135,7 @@ export default function UploadModal({
             <div className="space-y-4">
               <div className="spinner mx-auto" />
               <p className="text-sm">
-                Uploading {progress.current} / {progress.total}
+                アップロード中 {progress.current} / {progress.total}
               </p>
               <div className="w-full bg-[var(--background)] h-1">
                 <div
@@ -145,7 +145,7 @@ export default function UploadModal({
               </div>
             </div>
           ) : isDragActive ? (
-            <p className="text-[var(--accent-cyan)]">Drop files here...</p>
+            <p className="text-[var(--accent-cyan)]">ここにファイルをドロップ...</p>
           ) : (
             <div className="space-y-2">
               <svg
@@ -162,10 +162,10 @@ export default function UploadModal({
                 />
               </svg>
               <p className="text-sm text-[var(--text-secondary)]">
-                Drag & drop images or click to browse
+                画像をドラッグ＆ドロップ、またはクリックして選択
               </p>
               <p className="text-xs text-[var(--text-inactive)]">
-                PNG, JPG, WEBP up to 10MB each
+                PNG, JPG, WEBP 各10MBまで
               </p>
             </div>
           )}
@@ -174,7 +174,7 @@ export default function UploadModal({
         {/* Errors */}
         {errors.length > 0 && (
           <div className="mt-4 p-3 bg-[var(--accent-crimson)]/10 border border-[var(--accent-crimson)]/30">
-            <p className="text-xs text-[var(--accent-crimson)] mb-2">Upload Errors:</p>
+            <p className="text-xs text-[var(--accent-crimson)] mb-2">アップロードエラー:</p>
             {errors.map((error, i) => (
               <p key={i} className="text-xs text-[var(--text-secondary)]">
                 {error}
@@ -189,7 +189,7 @@ export default function UploadModal({
             onClick={onClose}
             className="w-full mt-6 btn-glow py-3 text-sm tracking-[1px] uppercase"
           >
-            Done
+            完了
           </button>
         )}
       </div>

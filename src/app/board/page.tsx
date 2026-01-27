@@ -43,6 +43,7 @@ export default function BoardListPage() {
   };
 
   useEffect(() => {
+    document.title = 'ムードボード - MAISON SPECIAL';
     fetchBoards();
   }, []);
 
@@ -116,8 +117,14 @@ export default function BoardListPage() {
       {/* Board Grid */}
       <div className="max-w-7xl mx-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="spinner" />
+          <div className="grid grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="glass-card p-4">
+                <div className="aspect-video skeleton mb-4" />
+                <div className="skeleton h-4 w-2/3 mb-2" />
+                <div className="skeleton h-3 w-1/3" />
+              </div>
+            ))}
           </div>
         ) : boards.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">

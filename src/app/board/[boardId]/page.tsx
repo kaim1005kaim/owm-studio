@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import ImageGrid from '@/components/ImageGrid';
+import Breadcrumbs from '@/components/Breadcrumbs';
 
 const WORKSPACE_SLUG = 'maison_demo';
 
@@ -113,6 +114,12 @@ export default function BoardDetailPage() {
     fetchGenerationStats();
   }, [fetchBoard, fetchGenerationStats]);
 
+  useEffect(() => {
+    if (board) {
+      document.title = `${board.name} - MAISON SPECIAL`;
+    }
+  }, [board]);
+
   const handleRemoveFromBoard = async (assetId: string) => {
     try {
       await fetch('/api/boards', {
@@ -158,8 +165,17 @@ export default function BoardDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen pt-20 flex items-center justify-center">
-        <div className="spinner" />
+      <div className="min-h-screen pt-20 px-6 pb-8">
+        <div className="max-w-7xl mx-auto mb-8">
+          <div className="skeleton h-3 w-32 mb-4" />
+          <div className="skeleton h-6 w-48 mb-2" />
+          <div className="skeleton h-4 w-24" />
+        </div>
+        <div className="max-w-7xl mx-auto grid grid-cols-4 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="aspect-[3/4] skeleton" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -178,12 +194,10 @@ export default function BoardDetailPage() {
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <button
-              onClick={() => router.push('/board')}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] tracking-[1px] uppercase mb-2 flex items-center gap-2"
-            >
-              ← ボード一覧に戻る
-            </button>
+            <Breadcrumbs items={[
+              { label: 'MOODBOARD', href: '/board' },
+              { label: board.name },
+            ]} />
             <h1 className="text-2xl tracking-[4px] uppercase mb-2">{board.name}</h1>
             <p className="text-sm text-[var(--text-secondary)]">
               参照画像 {board.assets.length} 枚

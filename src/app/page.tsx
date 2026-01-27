@@ -1,9 +1,14 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const router = useRouter();
+
+  useEffect(() => {
+    document.title = 'MAISON SPECIAL Design Studio';
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6">
@@ -22,8 +27,8 @@ export default function Home() {
 
         {/* Description */}
         <p className="text-[var(--text-secondary)] mb-12 leading-relaxed">
-          AI-powered fashion design generation tool. Upload reference images, create moodboards,
-          and generate new design variations with intelligent editing capabilities.
+          AIを活用したファッションデザイン生成ツール。参照画像をアップロードし、ムードボードを作成、
+          インテリジェントな編集機能でデザインバリエーションを生成します。
         </p>
 
         {/* Quick Actions */}
@@ -45,8 +50,8 @@ export default function Home() {
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <h3 className="text-sm tracking-[2px] uppercase mb-1">Library</h3>
-            <p className="text-xs text-[var(--text-secondary)]">Browse & upload references</p>
+            <h3 className="text-sm tracking-[2px] uppercase mb-1">LIBRARY</h3>
+            <p className="text-xs text-[var(--text-secondary)]">参照画像の閲覧・アップロード</p>
           </button>
 
           <button
@@ -66,30 +71,30 @@ export default function Home() {
                 d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
               />
             </svg>
-            <h3 className="text-sm tracking-[2px] uppercase mb-1">Moodboard</h3>
-            <p className="text-xs text-[var(--text-secondary)]">Create reference sets</p>
+            <h3 className="text-sm tracking-[2px] uppercase mb-1">MOODBOARD</h3>
+            <p className="text-xs text-[var(--text-secondary)]">参照画像セットの作成</p>
           </button>
         </div>
 
         {/* Workflow Steps */}
         <div className="mt-16 pt-8 border-t border-[var(--text-inactive)]">
           <h2 className="text-xs tracking-[4px] uppercase text-[var(--text-secondary)] mb-8">
-            Workflow
+            ワークフロー
           </h2>
           <div className="flex items-center justify-center gap-4 text-xs text-[var(--text-inactive)]">
             <span className="flex items-center gap-2">
               <span className="w-6 h-6 border border-current flex items-center justify-center">1</span>
-              Upload
+              アップロード
             </span>
             <span>→</span>
             <span className="flex items-center gap-2">
               <span className="w-6 h-6 border border-current flex items-center justify-center">2</span>
-              Moodboard
+              ムードボード
             </span>
             <span>→</span>
             <span className="flex items-center gap-2">
               <span className="w-6 h-6 border border-current flex items-center justify-center">3</span>
-              Generate
+              デザイン生成
             </span>
             <span>→</span>
             <span className="flex items-center gap-2">

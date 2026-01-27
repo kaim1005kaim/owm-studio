@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useToast } from '@/components/Toast';
+import Breadcrumbs from '@/components/Breadcrumbs';
 
 const WORKSPACE_SLUG = 'maison_demo';
 
@@ -117,19 +119,21 @@ const EDIT_PRESETS = [
 export default function GeneratePage() {
   const params = useParams();
   const router = useRouter();
+  const toast = useToast();
   const boardId = params.boardId as string;
 
   const [board, setBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [count, setCount] = useState<4 | 8 | 12>(4);
+  const count = 4;
   const [gender, setGender] = useState<GenderTarget>('mens');
   const [category, setCategory] = useState<GarmentCategory | ''>('');
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [generationHistory, setGenerationHistory] = useState<GenerationRecord[]>([]);
   const [inspiration, setInspiration] = useState('');
   const [selectedOutputs, setSelectedOutputs] = useState<string[]>([]);
+  const [activeGenerationId, setActiveGenerationId] = useState<string | null>(null);
 
   // Edit drawer state
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
@@ -145,9 +149,24 @@ export default function GeneratePage() {
   const [generatingViews, setGeneratingViews] = useState(false);
   const [detailResult, setDetailResult] = useState<DetailViewResult | null>(null);
 
+  // Reference images expand state
+  const [showAllRefs, setShowAllRefs] = useState(false);
+
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  // Filter outputs by active generation tab
+  const filteredOutputs = useMemo(() => {
+    if (!activeGenerationId) return outputs;
+    const gen = generationHistory.find((g) => g.id === activeGenerationId);
+    return gen ? gen.outputs : outputs;
+  }, [activeGenerationId, outputs, generationHistory]);
+
+  const formatTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
 
   const fetchBoard = useCallback(async () => {
     setLoading(true);
@@ -190,6 +209,12 @@ export default function GeneratePage() {
     fetchHistory();
   }, [fetchBoard, fetchHistory]);
 
+  useEffect(() => {
+    if (board) {
+      document.title = `GENERATE - ${board.name} - MAISON SPECIAL`;
+    }
+  }, [board]);
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
@@ -219,12 +244,15 @@ export default function GeneratePage() {
         }));
         setOutputs((prev) => [...newOutputs, ...prev]);
         setInspiration(data.inspiration || '');
+        // Refresh history so new generation appears in tabs
+        fetchHistory();
+        setActiveGenerationId(null);
       } else {
-        alert(data.error || '生成に失敗しました');
+        toast.error(data.error || '生成に失敗しました');
       }
     } catch (error) {
       console.error('Generation error:', error);
-      alert('生成に失敗しました');
+      toast.error('生成に失敗しました');
     } finally {
       setGenerating(false);
     }
@@ -293,11 +321,11 @@ export default function GeneratePage() {
 
         setEditInstruction('');
       } else {
-        alert(data.error || '再編集に失敗しました');
+        toast.error(data.error || '再編集に失敗しました');
       }
     } catch (error) {
       console.error('Edit error:', error);
-      alert('再編集に失敗しました');
+      toast.error('再編集に失敗しました');
     } finally {
       setEditing(false);
     }
@@ -362,11 +390,11 @@ export default function GeneratePage() {
           )
         );
       } else {
-        alert(data.error || '詳細ビュー生成に失敗しました');
+        toast.error(data.error || '詳細ビュー生成に失敗しました');
       }
     } catch (error) {
       console.error('Detail generation error:', error);
-      alert('詳細ビュー生成に失敗しました');
+      toast.error('詳細ビュー生成に失敗しました');
     } finally {
       setGeneratingViews(false);
     }
@@ -393,6 +421,40 @@ export default function GeneratePage() {
     }
     return imgs;
   }, [detailAsset, detailResult, viewStyle]);
+
+  // Download a single image
+  const handleDownload = async (url: string, filename?: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || `design-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      toast.error('ダウンロードに失敗しました');
+    }
+  };
+
+  // Batch export selected outputs
+  const handleExport = async () => {
+    const selected = outputs.filter((o) => selectedOutputs.includes(o.id));
+    if (selected.length === 0) return;
+
+    toast.info(`${selected.length}件のダウンロードを開始...`);
+    for (let i = 0; i < selected.length; i++) {
+      await handleDownload(selected[i].url, `design-${i + 1}.png`);
+      // Small delay between downloads
+      if (i < selected.length - 1) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+    toast.success(`${selected.length}件のダウンロードが完了しました`);
+  };
 
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
@@ -452,12 +514,11 @@ export default function GeneratePage() {
     <div className="min-h-screen pt-20 px-6 pb-8">
       {/* Page Header */}
       <div className="max-w-7xl mx-auto mb-8">
-        <button
-          onClick={() => router.push(`/board/${boardId}`)}
-          className="text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] tracking-[1px] uppercase mb-2 flex items-center gap-2"
-        >
-          &larr; {board.name} に戻る
-        </button>
+        <Breadcrumbs items={[
+          { label: 'MOODBOARD', href: '/board' },
+          { label: board.name, href: `/board/${boardId}` },
+          { label: 'GENERATE' },
+        ]} />
         <h1 className="text-2xl tracking-[4px] uppercase mb-2">GENERATE</h1>
         <p className="text-sm text-[var(--text-secondary)]">
           リファレンス画像をもとに新しいデザインバリエーションを生成します
@@ -472,19 +533,27 @@ export default function GeneratePage() {
             <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-4">
               リファレンス画像 ({board.assets.length})
             </h3>
-            <div className="grid grid-cols-4 gap-2">
-              {board.assets.slice(0, 8).map((asset) => (
-                <div key={asset.id} className="aspect-square relative overflow-hidden bg-[var(--background)]">
+            <div className="grid grid-cols-3 gap-1">
+              {(showAllRefs ? board.assets : board.assets.slice(0, 6)).map((asset) => (
+                <div key={asset.id} className="aspect-[3/4] relative overflow-hidden bg-[var(--background)]">
                   <Image
                     src={asset.thumbUrl || asset.url}
                     alt="Reference"
                     fill
                     className="object-cover"
-                    sizes="50px"
+                    sizes="80px"
                   />
                 </div>
               ))}
             </div>
+            {board.assets.length > 6 && (
+              <button
+                onClick={() => setShowAllRefs(!showAllRefs)}
+                className="w-full mt-2 text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors py-1"
+              >
+                {showAllRefs ? '折りたたむ' : `すべて表示 (${board.assets.length}枚)`}
+              </button>
+            )}
           </div>
 
           {/* Prompt Input */}
@@ -555,24 +624,6 @@ export default function GeneratePage() {
               ))}
             </div>
 
-            {/* Count Selection */}
-            <div className="flex items-center gap-4 mb-4">
-              <span className="text-xs text-[var(--text-secondary)]">生成枚数:</span>
-              {([4, 8, 12] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCount(c)}
-                  className={`px-3 py-1 text-xs ${
-                    count === c
-                      ? 'bg-[var(--accent-cyan)] text-black'
-                      : 'bg-[var(--background)] border border-[var(--text-inactive)]'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-
             {/* Generate Button */}
             <button
               onClick={handleGenerate}
@@ -585,22 +636,11 @@ export default function GeneratePage() {
                   生成中...
                 </span>
               ) : (
-                `${count}案 生成する`
+                '4案 生成する'
               )}
             </button>
           </div>
 
-          {/* Inspiration */}
-          {inspiration && (
-            <div className="glass-card p-4">
-              <h3 className="text-xs tracking-[2px] uppercase text-[var(--text-secondary)] mb-2">
-                AI インスピレーション
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">
-                {inspiration}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Right Column - Generated Results */}
@@ -615,7 +655,7 @@ export default function GeneratePage() {
                 生成には数分かかります
               </p>
             </div>
-          ) : outputs.length === 0 ? (
+          ) : filteredOutputs.length === 0 && outputs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-96 text-center">
               <svg
                 className="w-16 h-16 text-[var(--text-inactive)] mb-4"
@@ -639,6 +679,32 @@ export default function GeneratePage() {
             </div>
           ) : (
             <>
+              {/* AI Inspiration Banner */}
+              {inspiration && (
+                <div className="mb-4 border-l-2 border-[var(--accent-amber)] bg-[var(--accent-amber)]/5 p-4 flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs tracking-[2px] uppercase text-[var(--accent-amber)] mb-1">
+                      AI インスピレーション
+                    </h4>
+                    <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap">
+                      {inspiration}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(inspiration);
+                      toast.success('コピーしました');
+                    }}
+                    className="flex-shrink-0 text-[var(--text-inactive)] hover:text-[var(--foreground)] transition-colors"
+                    title="コピー"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
               {/* Actions Bar */}
               {selectedOutputs.length > 0 && (
                 <div className="mb-4 flex items-center justify-between glass-card p-3">
@@ -652,16 +718,59 @@ export default function GeneratePage() {
                     >
                       解除
                     </button>
-                    <button className="btn-glow-amber px-4 py-2 text-xs tracking-[1px] uppercase">
+                    <button
+                      onClick={handleExport}
+                      className="btn-glow-amber px-4 py-2 text-xs tracking-[1px] uppercase"
+                    >
                       エクスポート
                     </button>
                   </div>
                 </div>
               )}
 
+              {/* Generation History Tabs */}
+              {generationHistory.length > 0 && (
+                <div className="mb-4 overflow-x-auto">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <button
+                      onClick={() => setActiveGenerationId(null)}
+                      className={`flex-shrink-0 px-3 py-1.5 text-xs tracking-[1px] uppercase border transition-colors ${
+                        activeGenerationId === null
+                          ? 'border-[var(--accent-cyan)] bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)]'
+                          : 'border-[var(--text-inactive)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'
+                      }`}
+                    >
+                      すべて ({outputs.length})
+                    </button>
+                    {generationHistory.map((gen, idx) => (
+                      <button
+                        key={gen.id}
+                        onClick={() => setActiveGenerationId(gen.id)}
+                        className={`flex-shrink-0 px-3 py-1.5 text-xs border transition-colors max-w-[200px] truncate ${
+                          activeGenerationId === gen.id
+                            ? 'border-[var(--accent-cyan)] bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)]'
+                            : 'border-[var(--text-inactive)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'
+                        }`}
+                        title={gen.prompt}
+                      >
+                        {idx === 0 && (
+                          <span className="text-[var(--accent-cyan)] mr-1">●</span>
+                        )}
+                        <span className="truncate">
+                          {gen.prompt.replace(/\[ターゲット:.*?\]\n?/, '').slice(0, 20) || 'プロンプト'}
+                        </span>
+                        <span className="ml-1 text-[var(--text-inactive)]">
+                          ({gen.outputs.length})
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Results Grid */}
               <div className="grid grid-cols-4 gap-4">
-                {outputs.map((output) => (
+                {filteredOutputs.map((output) => (
                   <div
                     key={output.id}
                     className={`relative group cursor-pointer ${
@@ -716,6 +825,15 @@ export default function GeneratePage() {
                         >
                           画像を再編集
                         </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(output.url);
+                          }}
+                          className="text-[var(--text-secondary)] hover:text-[var(--foreground)] text-xs tracking-[1px] uppercase mt-1"
+                        >
+                          ダウンロード
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -725,7 +843,10 @@ export default function GeneratePage() {
               {/* Results Summary */}
               <div className="mt-6 text-center">
                 <p className="text-sm text-[var(--text-secondary)]">
-                  {outputs.length}件のデザインが生成されました
+                  {filteredOutputs.length}件のデザイン
+                  {activeGenerationId && outputs.length !== filteredOutputs.length && (
+                    <span className="text-[var(--text-inactive)]"> / 全{outputs.length}件</span>
+                  )}
                 </p>
               </div>
             </>
@@ -738,7 +859,7 @@ export default function GeneratePage() {
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/70"
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={handleCloseEdit}
           />
 
@@ -963,7 +1084,7 @@ export default function GeneratePage() {
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/70"
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={handleCloseDetailView}
           />
 
