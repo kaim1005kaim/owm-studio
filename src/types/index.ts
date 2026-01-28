@@ -114,38 +114,56 @@ export interface EditWithAssets extends Edit {
 
 // Garment categories (MD)
 export type GarmentCategory =
+  | 'cutsew'
+  | 'sweat'
+  | 'knit'
+  | 'shirt'
+  | 'blouse'
+  | 'vest'
+  | 'onepiece'
   | 'coat'
   | 'blouson'
   | 'jacket'
-  | 'vest'
-  | 'shirt'
-  | 'knit'
   | 'pants'
   | 'skirt'
-  | 'onepiece';
+  | 'bag'
+  | 'accessory'
+  | 'shoes';
 
 export const GARMENT_CATEGORY_LABELS: Record<GarmentCategory, string> = {
+  cutsew: 'カットソー',
+  sweat: 'スウェット',
+  knit: 'ニット',
+  shirt: 'シャツ',
+  blouse: 'ブラウス',
+  vest: 'ベスト',
+  onepiece: 'ワンピース',
   coat: 'コート',
   blouson: 'ブルゾン',
   jacket: 'ジャケット',
-  vest: 'ベスト',
-  shirt: 'シャツ',
-  knit: 'ニット',
   pants: 'パンツ',
   skirt: 'スカート',
-  onepiece: 'ワンピース',
+  bag: 'バッグ',
+  accessory: 'アクセサリー',
+  shoes: 'シューズ',
 };
 
 export const GARMENT_CATEGORY_DESCRIPTIONS: Record<GarmentCategory, string> = {
+  cutsew: 'Cut-and-sewn jersey top (T-shirt, long sleeve tee, henley, polo). Soft knit fabric, casual construction.',
+  sweat: 'Sweatshirt or hoodie (crew neck sweat, pullover hoodie, zip hoodie). Fleece-lined, relaxed fit.',
+  knit: 'Knitted top (sweater, cardigan, turtleneck, pullover). Visible knit texture.',
+  shirt: 'Button-front top (dress shirt, casual shirt, overshirt). Collar and cuffs visible.',
+  blouse: 'Feminine top (blouse, bow-tie blouse, peplum top). Lightweight fabric, elegant drape.',
+  vest: 'Sleeveless outerwear or layering piece (gilet, vest, waistcoat). Shows innerwear sleeves.',
+  onepiece: 'Full-body garment (dress, jumpsuit, romper). Head-to-toe single piece.',
   coat: 'Long outerwear (overcoat, trench coat, duffle coat, chester coat). Mid-thigh to ankle length.',
   blouson: 'Short outerwear (bomber jacket, MA-1, blouson, windbreaker). Waist to hip length with elastic/ribbed hem.',
   jacket: 'Tailored or structured outerwear (blazer, tailored jacket, safari jacket). Hip length.',
-  vest: 'Sleeveless outerwear or layering piece (gilet, vest, waistcoat). Shows innerwear sleeves.',
-  shirt: 'Button-front or pullover top (dress shirt, blouse, overshirt). Collar and cuffs visible.',
-  knit: 'Knitted top (sweater, cardigan, turtleneck, pullover). Visible knit texture.',
   pants: 'Lower body (trousers, wide-leg pants, cargo pants, joggers). Full leg visible.',
   skirt: 'Lower body (midi skirt, maxi skirt, mini skirt, pleated skirt). Show movement and drape.',
-  onepiece: 'Full-body garment (dress, jumpsuit, romper). Head-to-toe single piece.',
+  bag: 'Bag or carry accessory (tote bag, backpack, shoulder bag, clutch). Show shape, material, and hardware details.',
+  accessory: 'Fashion accessory (hat, scarf, belt, jewelry, sunglasses, gloves). Show detail and styling context.',
+  shoes: 'Footwear (sneakers, boots, loafers, heels, sandals). Show silhouette, sole, and material details.',
 };
 
 // View style for garment spec sheets

@@ -65,15 +65,21 @@ interface GenerationRecord {
 }
 
 type GarmentCategory =
+  | 'cutsew'
+  | 'sweat'
+  | 'knit'
+  | 'shirt'
+  | 'blouse'
+  | 'vest'
+  | 'onepiece'
   | 'coat'
   | 'blouson'
   | 'jacket'
-  | 'vest'
-  | 'shirt'
-  | 'knit'
   | 'pants'
   | 'skirt'
-  | 'onepiece';
+  | 'bag'
+  | 'accessory'
+  | 'shoes';
 
 type ViewStyle = 'ghost' | 'flatlay';
 type GenderTarget = 'mens' | 'ladies' | 'unisex';
@@ -85,15 +91,21 @@ const GENDER_TABS: { value: GenderTarget; label: string }[] = [
 ];
 
 const GARMENT_CATEGORIES: { value: GarmentCategory; label: string }[] = [
+  { value: 'cutsew', label: 'カットソー' },
+  { value: 'sweat', label: 'スウェット' },
+  { value: 'knit', label: 'ニット' },
+  { value: 'shirt', label: 'シャツ' },
+  { value: 'blouse', label: 'ブラウス' },
+  { value: 'vest', label: 'ベスト' },
+  { value: 'onepiece', label: 'ワンピース' },
   { value: 'coat', label: 'コート' },
   { value: 'blouson', label: 'ブルゾン' },
   { value: 'jacket', label: 'ジャケット' },
-  { value: 'vest', label: 'ベスト' },
-  { value: 'shirt', label: 'シャツ' },
-  { value: 'knit', label: 'ニット' },
   { value: 'pants', label: 'パンツ' },
   { value: 'skirt', label: 'スカート' },
-  { value: 'onepiece', label: 'ワンピース' },
+  { value: 'bag', label: 'バッグ' },
+  { value: 'accessory', label: 'アクセサリー' },
+  { value: 'shoes', label: 'シューズ' },
 ];
 
 const PROMPT_TEMPLATES = [
