@@ -211,8 +211,7 @@ export default function CreateClient() {
 
       if (data.success) {
         toast.success('3面図を生成しました');
-        // Navigate to refine page with the generated views
-        router.push(`/refine/${assetId}`);
+        // Stay on page - refine page redirects to library which is wrong for Heralbony
       } else {
         throw new Error(data.error || 'View generation failed');
       }
