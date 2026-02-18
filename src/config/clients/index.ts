@@ -22,6 +22,7 @@ export interface FeatureFlags {
   textileLibrary: boolean;
   additionalReferences: boolean;
   artistAttribution: boolean;
+  viewGeneration?: boolean;  // Ghost mannequin / flat lay 3-view
 }
 
 // Category configuration
@@ -61,6 +62,7 @@ export interface ContentStrings {
 export interface GenerationConfig {
   defaultCount: number;
   maxReferences: number;
+  aspectRatio?: string;  // e.g., '9:16', '4:5'
   promptTemplates: PromptTemplate[];
   systemPromptOverrides?: string;
 }

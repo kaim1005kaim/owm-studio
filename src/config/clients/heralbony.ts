@@ -53,6 +53,7 @@ export const heralbonyConfig: ClientConfig = {
     textileLibrary: true,        // PRIMARY entry point
     additionalReferences: true,  // Upload during generation
     artistAttribution: true,     // Show artist name on textiles
+    viewGeneration: true,        // Ghost mannequin / flat lay 3-view
   },
 
   // Categories (textile-focused)
@@ -62,6 +63,7 @@ export const heralbonyConfig: ClientConfig = {
   generation: {
     defaultCount: 4,
     maxReferences: 6,  // Primary textile + up to 5 additional
+    aspectRatio: '9:16',  // Vertical portrait format
     promptTemplates: [
       { id: 'classic', label: 'クラシック', prompt: 'Classic tailoring with artistic textile as hero. Refined silhouette, let the art speak through quality construction.' },
       { id: 'casual', label: 'カジュアル', prompt: 'Relaxed everyday style featuring the artistic textile. Comfortable fit, pattern prominence, approachable fashion.' },

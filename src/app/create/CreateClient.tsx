@@ -13,6 +13,7 @@ import {
   useCategories,
   usePromptTemplates,
   useContent,
+  useFeature,
 } from '@/context/ClientContext';
 
 interface TextileAsset {
@@ -55,6 +56,9 @@ export default function CreateClient() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [generatingViews, setGeneratingViews] = useState<string | null>(null);  // assetId being processed
+  const hasViewGeneration = useFeature('viewGeneration');
+  const aspectRatio = client.generation?.aspectRatio || '9:16';
 
   const textileId = searchParams.get('textile');
 
@@ -133,6 +137,7 @@ export default function CreateClient() {
           prompt: prompt || 'ファッションデザイン',
           count: 4,
           category: selectedCategory,
+          aspectRatio,
           additionalReferences: additionalImages,
           artistName: textile.artistName,
           textileTitle: textile.title,
@@ -185,6 +190,37 @@ export default function CreateClient() {
       URL.revokeObjectURL(blobUrl);
     } catch {
       toast.error('ダウンロードに失敗しました');
+    }
+  };
+
+  // Generate 3-view (ghost mannequin or flat lay)
+  const handleGenerateViews = async (assetId: string, viewStyle: 'ghost' | 'flatlay') => {
+    setGeneratingViews(assetId);
+    try {
+      const res = await fetch('/api/generate-views', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceSlug,
+          assetId,
+          viewStyle,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success('3面図を生成しました');
+        // Navigate to refine page with the generated views
+        router.push(`/refine/${assetId}`);
+      } else {
+        throw new Error(data.error || 'View generation failed');
+      }
+    } catch (error) {
+      console.error('View generation error:', error);
+      toast.error('3面図の生成に失敗しました');
+    } finally {
+      setGeneratingViews(null);
     }
   };
 
@@ -329,7 +365,7 @@ export default function CreateClient() {
               {outputs.map((output) => (
                 <div
                   key={output.id}
-                  className="group relative aspect-[3/4] rounded overflow-hidden cursor-pointer"
+                  className="group relative aspect-[9/16] rounded overflow-hidden cursor-pointer"
                   onClick={() => setLightboxUrl(output.url)}
                 >
                   <Image
@@ -340,7 +376,32 @@ export default function CreateClient() {
                   />
                   {/* Hover Actions */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors">
-                    <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity space-y-2">
+                      {/* 3-View Generation Buttons */}
+                      {hasViewGeneration && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGenerateViews(output.assetId, 'ghost');
+                            }}
+                            disabled={generatingViews === output.assetId}
+                            className="flex-1 py-2 bg-white/90 text-black text-xs rounded hover:bg-white transition-colors disabled:opacity-50"
+                          >
+                            {generatingViews === output.assetId ? '生成中...' : 'ゴースト'}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGenerateViews(output.assetId, 'flatlay');
+                            }}
+                            disabled={generatingViews === output.assetId}
+                            className="flex-1 py-2 bg-white/90 text-black text-xs rounded hover:bg-white transition-colors disabled:opacity-50"
+                          >
+                            {generatingViews === output.assetId ? '生成中...' : '平置き'}
+                          </button>
+                        </div>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -364,7 +425,7 @@ export default function CreateClient() {
             <h3 className="text-lg tracking-[2px] uppercase mb-6">生成中...</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="aspect-[3/4] skeleton rounded" />
+                <div key={i} className="aspect-[9/16] skeleton rounded" />
               ))}
             </div>
           </div>
@@ -385,7 +446,7 @@ export default function CreateClient() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <div className="relative max-w-4xl max-h-[90vh] w-full aspect-[3/4]">
+          <div className="relative max-w-4xl max-h-[90vh] w-full aspect-[9/16]">
             <Image
               src={lightboxUrl}
               alt="Generated design"

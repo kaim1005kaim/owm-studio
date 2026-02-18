@@ -43,7 +43,7 @@ export function useClient(): ClientConfig {
  */
 export function useFeature(featureName: keyof ClientConfig['features']): boolean {
   const client = useClient();
-  return client.features[featureName];
+  return client.features[featureName] ?? false;
 }
 
 /**
