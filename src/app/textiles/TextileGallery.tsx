@@ -124,31 +124,21 @@ export default function TextileGallery() {
               {content.libraryDescription}
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            {/* Artist Filter */}
-            {artists.length > 1 && (
-              <select
-                value={artistFilter}
-                onChange={(e) => setArtistFilter(e.target.value)}
-                className="form-input text-sm py-2 px-4 min-w-[180px]"
-              >
-                <option value="">すべてのアーティスト</option>
-                {artists.map((artist) => (
-                  <option key={artist} value={artist}>
-                    {artist}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {/* Upload Button */}
-            <button
-              onClick={() => setShowUpload(true)}
-              className="btn-glow px-4 py-2 text-xs tracking-[1px] uppercase"
+          {/* Artist Filter */}
+          {artists.length > 1 && (
+            <select
+              value={artistFilter}
+              onChange={(e) => setArtistFilter(e.target.value)}
+              className="form-input text-sm py-2 px-4 min-w-[180px]"
             >
-              + テキスタイル追加
-            </button>
-          </div>
+              <option value="">すべてのアーティスト</option>
+              {artists.map((artist) => (
+                <option key={artist} value={artist}>
+                  {artist}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 

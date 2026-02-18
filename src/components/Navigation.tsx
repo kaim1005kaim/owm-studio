@@ -33,14 +33,9 @@ export default function Navigation() {
             <div className="w-8 h-8 border border-[var(--accent-cyan)] flex items-center justify-center">
               <span className="text-[var(--accent-cyan)] text-xs font-bold">{client.logoText}</span>
             </div>
-            <div>
-              <h1 className="text-sm font-medium tracking-[4px] uppercase">
-                {client.brandName}
-              </h1>
-              <p className="text-[10px] text-[var(--text-secondary)] tracking-[2px]">
-                {client.tagline}
-              </p>
-            </div>
+            <h1 className="text-sm font-medium tracking-[4px] uppercase">
+              {client.brandName}
+            </h1>
           </Link>
 
           {/* Navigation Links */}
