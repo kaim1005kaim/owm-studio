@@ -505,6 +505,134 @@ export async function generateImageFromPrompt(
 }
 
 /**
+ * Generate fashion designs from textile art (HERALBONY flow)
+ * Uses textile-specific prompts that preserve artist's vision
+ */
+export async function generateTextileDesigns(
+  referenceImages: { base64: string; mimeType: string }[],
+  userPrompt: string,
+  count: number = 1,
+  options: {
+    artistName: string;
+    textileTitle: string;
+    category: string;
+    categoryDescription: string;
+  }
+): Promise<{ base64: string; mimeType: string }[]> {
+  const { artistName, textileTitle, category, categoryDescription } = options;
+
+  const systemPrompt = `あなたはテキスタイルアートをファッションアイテムに適用する専門のAIアシスタントです。
+アーティストの作品を尊重しながら、テキスタイルパターンを衣服に美しく適用してください。
+
+[PRIMARY TEXTILE - HERO ELEMENT]
+- Artist: ${artistName}
+- Artwork: "${textileTitle}"
+- This is original artwork - preserve the artist's vision with utmost respect
+- The textile pattern is the HERO of the design - the garment is its canvas
+- Never distort, unnaturally stretch, or crop the core artistic motif
+
+[TEXTILE APPLICATION - CRITICAL]
+- Apply pattern with appropriate scale for the garment type
+- Maintain pattern continuity and flow across seams and construction lines
+- Consider how the pattern interacts with garment movement and drape
+- Pattern should align naturally at seams where possible
+- The result should feel like wearable art, not just patterned clothing
+
+[GARMENT CATEGORY]
+Category: ${category}
+Description: ${categoryDescription}
+Generate a design specifically for this garment category. The output must clearly be this type of garment.
+
+[COMPOSITION - CRITICAL]
+- MUST show exactly ONE model in FULL-BODY view (head to toe visible)
+- Camera angle: straight-on or slight angle, showing entire body from head to feet
+- NO close-up shots of garments or details
+- NO cropped views (waist-up, torso only, etc.)
+- NO flat lay or product-only shots
+- NO multiple models or collage layouts
+- The model should be centered, standing naturally, with full outfit visible
+- Background: clean studio environment, gallery-white or neutral
+
+[STYLING]
+- Art-forward, gallery-worthy presentation
+- Let the textile art speak - garment silhouette should complement, not compete
+- Consider appropriate innerwear and accessories that don't distract from the art
+- Model styling should be minimal and elegant
+
+[USER DIRECTION]
+${userPrompt}
+
+[ARTIST RESPECT]
+- This is original artwork created by an artist with intellectual disabilities
+- Honor the artistic intent, visual language, and emotional expression
+- The textile is the hero - showcase it with dignity and beauty
+
+[DIVERSITY]
+Generate unique variations. Each design should explore different:
+- Silhouette interpretations
+- Pattern placement and scale
+- Color interaction with the textile art
+- Construction details that enhance the art
+
+[NEGATIVE]
+- NO logos, brand names, monograms, or brand identifiers
+- NO text, labels, watermarks, or typography
+- NO 3D render look, illustration, or painting style
+- NO close-up or detail shots of clothing
+- NO cropped or partial body views
+- NO flat lay or product-only photography
+- NO multiple models or split-screen layouts
+- NO distortion of the original textile art
+- Must look like a real fashion photograph with single full-body model
+
+ユニークなデザインバリエーションを1つ生成してください。テキスタイルアートの魅力を最大限に引き出すデザインを作成してください。`;
+
+  const parts: GeminiPart[] = [
+    { text: systemPrompt },
+    ...referenceImages.map((img) => ({
+      inlineData: {
+        mimeType: img.mimeType,
+        data: img.base64.replace(/^data:image\/\w+;base64,/, ''),
+      },
+    })),
+  ];
+
+  const results: { base64: string; mimeType: string }[] = [];
+
+  // Generate images one by one (Gemini generates one at a time)
+  for (let i = 0; i < count; i++) {
+    try {
+      // Add delay between requests to avoid rate limiting (10 req/min limit)
+      if (i > 0) {
+        await sleep(7000); // 7 seconds between requests
+      }
+
+      const response = await callGeminiAPI(
+        IMAGE_MODEL,
+        [{ role: 'user', parts }],
+        {
+          temperature: 0.8 + (i * 0.05), // Slightly vary temperature for diversity
+          responseModalities: ['IMAGE', 'TEXT'],
+        }
+      );
+
+      const image = extractImageFromResponse(response);
+      if (image) {
+        results.push(image);
+      }
+    } catch (error) {
+      console.error(`Error generating textile design ${i + 1}:`, error);
+      // If rate limited, wait longer before next attempt
+      if (error instanceof Error && error.message.includes('429')) {
+        await sleep(60000); // Wait 60 seconds on rate limit
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
  * Generate a text description/inspiration based on reference images
  */
 export async function generateInspiration(

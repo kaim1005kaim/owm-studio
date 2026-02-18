@@ -41,10 +41,15 @@ export async function getWorkspaceBySlug(slug: string) {
   return data;
 }
 
-// Helper to get or create demo workspace
-export async function getOrCreateDemoWorkspace() {
+// Workspace configuration map
+const WORKSPACE_CONFIG: Record<string, { name: string }> = {
+  maison_demo: { name: 'MAISON SPECIAL Demo' },
+  heralbony_demo: { name: 'HERALBONY Demo' },
+};
+
+// Helper to get or create workspace by slug
+export async function getOrCreateWorkspace(slug: string) {
   const supabase = getSupabase();
-  const slug = process.env.DEMO_WORKSPACE_SLUG || 'maison_demo';
 
   const { data: existing } = await supabase
     .from('workspaces')
@@ -54,15 +59,24 @@ export async function getOrCreateDemoWorkspace() {
 
   if (existing) return existing;
 
+  // Create workspace with configured name, or use slug as fallback
+  const config = WORKSPACE_CONFIG[slug] || { name: slug };
+
   const { data: created, error } = await supabase
     .from('workspaces')
     .insert({
       slug,
-      name: 'MAISON SPECIAL Demo',
+      name: config.name,
     })
     .select()
     .single();
 
   if (error) throw error;
   return created;
+}
+
+// Helper to get or create demo workspace (legacy - uses maison_demo)
+export async function getOrCreateDemoWorkspace() {
+  const slug = process.env.DEMO_WORKSPACE_SLUG || 'maison_demo';
+  return getOrCreateWorkspace(slug);
 }

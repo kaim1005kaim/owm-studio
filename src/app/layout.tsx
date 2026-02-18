@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Noto_Serif_JP } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
 import { ToastProvider } from "@/components/Toast";
+import { ClientProvider } from "@/context/ClientContext";
+import { getClientConfig, getClientId } from "@/config/clients";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,25 +17,41 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "OWM Biz Demo - MAISON SPECIAL Design Studio",
-  description: "AI-powered fashion design generation tool for enterprise",
-};
+const notoSerifJP = Noto_Serif_JP({
+  variable: "--font-noto-serif-jp",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+});
+
+// Dynamic metadata based on client
+export async function generateMetadata(): Promise<Metadata> {
+  const config = getClientConfig();
+  return {
+    title: `${config.brandName} Design Studio`,
+    description: config.content.homeDescription,
+  };
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const clientId = getClientId();
+  const config = getClientConfig(clientId);
+  const themeClass = `theme-${config.id}`;
+
   return (
     <html lang="ja">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoSerifJP.variable} ${themeClass} antialiased`}
       >
-        <ToastProvider>
-          <Navigation />
-          <main>{children}</main>
-        </ToastProvider>
+        <ClientProvider clientId={clientId}>
+          <ToastProvider>
+            <Navigation />
+            <main>{children}</main>
+          </ToastProvider>
+        </ClientProvider>
       </body>
     </html>
   );

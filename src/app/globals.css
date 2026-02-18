@@ -270,3 +270,179 @@ body::before {
   letter-spacing: 1px;
   text-transform: uppercase;
 }
+
+/* ============================================
+   HERALBONY Theme
+   Art-gallery neutral aesthetic
+   ============================================ */
+
+.theme-heralbony {
+  --background: #FAFAFA;
+  --foreground: #1A1A1A;
+  --background-card: #FFFFFF;
+  --text-secondary: #666666;
+  --text-inactive: #BBBBBB;
+
+  /* Accent Colors */
+  --accent-cyan: #1A1A1A;      /* Black as primary accent */
+  --accent-amber: #8B7355;      /* Earthy brown */
+  --accent-crimson: #C45B4D;    /* Muted red */
+  --accent-gold: #B8860B;       /* Dark goldenrod */
+
+  /* Glow Effects - subtle for light theme */
+  --glow-cyan: rgba(26, 26, 26, 0.1);
+  --glow-amber: rgba(139, 115, 85, 0.2);
+  --glow-crimson: rgba(196, 91, 77, 0.2);
+}
+
+/* Heralbony body styling */
+.theme-heralbony body {
+  font-family: var(--font-noto-serif-jp), 'Hiragino Mincho ProN', serif;
+}
+
+/* Remove film grain for light theme */
+.theme-heralbony body::before {
+  display: none;
+}
+
+/* Glassmorphism Cards - light version */
+.theme-heralbony .glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Glow Button - solid style for light theme */
+.theme-heralbony .btn-glow {
+  border: 1px solid var(--foreground);
+  color: var(--foreground);
+}
+
+.theme-heralbony .btn-glow:hover {
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: none;
+}
+
+.theme-heralbony .btn-glow-amber {
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.theme-heralbony .btn-glow-amber:hover {
+  background: var(--accent-amber);
+  color: white;
+  box-shadow: none;
+}
+
+/* Primary Button */
+.theme-heralbony .btn-primary {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.theme-heralbony .btn-primary:hover {
+  background: #333333;
+  color: white;
+}
+
+/* Tag Chip */
+.theme-heralbony .tag-chip {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.theme-heralbony .tag-chip:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: var(--foreground);
+}
+
+/* Navigation */
+.theme-heralbony .nav-link {
+  color: var(--text-secondary);
+  font-family: Inter, 'Helvetica Neue', sans-serif;
+}
+
+.theme-heralbony .nav-link:hover,
+.theme-heralbony .nav-link.active {
+  color: var(--foreground);
+}
+
+.theme-heralbony .nav-link.active::after {
+  background: var(--foreground);
+}
+
+/* Loading Spinner */
+.theme-heralbony .spinner {
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: var(--foreground);
+}
+
+/* Toast Notification */
+.theme-heralbony .toast {
+  background: var(--background-card);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Skeleton Loader */
+.theme-heralbony .skeleton {
+  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background-size: 200% 100%;
+}
+
+/* Form Input */
+.theme-heralbony .form-input {
+  background: var(--background-card);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.theme-heralbony .form-input:focus {
+  border-color: var(--foreground);
+}
+
+.theme-heralbony .form-input::placeholder {
+  color: var(--text-inactive);
+}
+
+/* Scrollbar */
+.theme-heralbony::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+.theme-heralbony::-webkit-scrollbar-thumb {
+  background: #CCCCCC;
+}
+
+.theme-heralbony::-webkit-scrollbar-thumb:hover {
+  background: #AAAAAA;
+}
+
+/* Textile Card - special styling for Heralbony */
+.theme-heralbony .textile-card {
+  background: var(--background-card);
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.theme-heralbony .textile-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Artist attribution styling */
+.theme-heralbony .artist-name {
+  font-family: Inter, 'Helvetica Neue', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.theme-heralbony .textile-title {
+  font-family: var(--font-noto-serif-jp), 'Hiragino Mincho ProN', serif;
+  font-size: 1rem;
+  color: var(--foreground);
+}
