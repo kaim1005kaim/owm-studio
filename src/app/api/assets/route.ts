@@ -84,7 +84,12 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (source) {
-      query = query.eq('source', source);
+      const sources = source.split(',').filter(Boolean);
+      if (sources.length === 1) {
+        query = query.eq('source', sources[0]);
+      } else if (sources.length > 1) {
+        query = query.in('source', sources);
+      }
     }
     if (collection) {
       query = query.eq('collection', collection);
