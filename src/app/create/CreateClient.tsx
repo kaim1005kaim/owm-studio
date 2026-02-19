@@ -322,9 +322,29 @@ export default function CreateClient() {
 
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success && data.garmentViews) {
         toast.success('3面図を生成しました');
-        // Refresh history to show new 3-view results
+
+        // Update current outputs state to show 3-view immediately
+        setOutputs((prev) =>
+          prev.map((output) =>
+            output.assetId === assetId
+              ? {
+                  ...output,
+                  detailViews: {
+                    garmentViews: {
+                      frontUrl: data.garmentViews.frontUrl,
+                      sideUrl: data.garmentViews.sideUrl,
+                      backUrl: data.garmentViews.backUrl,
+                      viewStyle: data.garmentViews.viewStyle,
+                    },
+                  },
+                }
+              : output
+          )
+        );
+
+        // Also refresh history in background
         fetchHistory();
       } else {
         throw new Error(data.error || 'View generation failed');
