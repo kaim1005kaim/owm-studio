@@ -76,7 +76,8 @@ export default function CreateClient() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [generatingViews, setGeneratingViews] = useState<string | null>(null);  // assetId being processed
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create');
   const [history, setHistory] = useState<GenerationHistory[]>([]);
@@ -86,6 +87,40 @@ export default function CreateClient() {
   const aspectRatio = client.generation?.aspectRatio || '9:16';
 
   const textileId = searchParams.get('textile');
+
+  // Lightbox helpers
+  const openLightbox = (images: string[], startIndex: number = 0) => {
+    setLightboxImages(images);
+    setLightboxIndex(startIndex);
+  };
+
+  const closeLightbox = () => {
+    setLightboxImages([]);
+    setLightboxIndex(0);
+  };
+
+  const nextImage = () => {
+    setLightboxIndex((prev) => (prev + 1) % lightboxImages.length);
+  };
+
+  const prevImage = () => {
+    setLightboxIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length);
+  };
+
+  // Build image array for output with detail views
+  const getOutputImages = (output: GeneratedOutput): string[] => {
+    const images: string[] = [output.url];
+    if (output.detailViews?.heroUrl) {
+      images.push(output.detailViews.heroUrl);
+    }
+    if (output.detailViews?.garmentViews) {
+      const { frontUrl, sideUrl, backUrl } = output.detailViews.garmentViews;
+      if (frontUrl) images.push(frontUrl);
+      if (sideUrl) images.push(sideUrl);
+      if (backUrl) images.push(backUrl);
+    }
+    return images;
+  };
 
   // Fetch textile asset
   const fetchTextile = useCallback(async () => {
@@ -443,7 +478,7 @@ export default function CreateClient() {
                 <div
                   key={output.id}
                   className="group relative aspect-[9/16] rounded overflow-hidden cursor-pointer"
-                  onClick={() => setLightboxUrl(output.url)}
+                  onClick={() => openLightbox(getOutputImages(output), 0)}
                 >
                   <Image
                     src={output.url}
@@ -562,12 +597,14 @@ export default function CreateClient() {
 
                         {/* Outputs Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {gen.outputs.map((output) => (
+                          {gen.outputs.map((output) => {
+                            const outputImages = getOutputImages(output);
+                            return (
                             <div key={output.id} className="space-y-2">
                               {/* Main Output */}
                               <div
                                 className="relative aspect-[9/16] rounded overflow-hidden cursor-pointer group"
-                                onClick={() => setLightboxUrl(output.url)}
+                                onClick={() => openLightbox(outputImages, 0)}
                               >
                                 <Image
                                   src={output.url}
@@ -585,14 +622,16 @@ export default function CreateClient() {
                                     3面図 ({output.detailViews.garmentViews.viewStyle === 'ghost' ? 'ゴースト' : '平置き'})
                                   </p>
                                   <div className="grid grid-cols-3 gap-1">
-                                    {['frontUrl', 'sideUrl', 'backUrl'].map((view) => {
+                                    {['frontUrl', 'sideUrl', 'backUrl'].map((view, viewIndex) => {
                                       const url = output.detailViews?.garmentViews?.[view as 'frontUrl' | 'sideUrl' | 'backUrl'];
                                       if (!url) return null;
+                                      // Calculate index: 1 (main) + 1 (hero if exists) + viewIndex
+                                      const imageIndex = 1 + (output.detailViews?.heroUrl ? 1 : 0) + viewIndex;
                                       return (
                                         <div
                                           key={view}
                                           className="relative aspect-square rounded overflow-hidden cursor-pointer"
-                                          onClick={() => setLightboxUrl(url)}
+                                          onClick={() => openLightbox(outputImages, imageIndex)}
                                         >
                                           <Image
                                             src={url}
@@ -627,7 +666,8 @@ export default function CreateClient() {
                                 </div>
                               )}
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                       </div>
                     )}
@@ -639,28 +679,82 @@ export default function CreateClient() {
         )}
       </div>
 
-      {/* Lightbox */}
-      {lightboxUrl && (
+      {/* Lightbox with Carousel */}
+      {lightboxImages.length > 0 && (
         <div
           className="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4"
-          onClick={() => setLightboxUrl(null)}
+          onClick={closeLightbox}
         >
+          {/* Close Button */}
           <button
-            onClick={() => setLightboxUrl(null)}
-            className="absolute top-4 right-4 text-white/80 hover:text-white"
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 text-white/80 hover:text-white z-10"
           >
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <div className="relative max-w-4xl max-h-[90vh] w-full aspect-[9/16]">
+
+          {/* Previous Button */}
+          {lightboxImages.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                prevImage();
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white z-10 p-2"
+            >
+              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+
+          {/* Next Button */}
+          {lightboxImages.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                nextImage();
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white z-10 p-2"
+            >
+              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+
+          {/* Image */}
+          <div
+            className="relative max-w-4xl max-h-[90vh] w-full aspect-[9/16]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Image
-              src={lightboxUrl}
-              alt="Generated design"
+              src={lightboxImages[lightboxIndex]}
+              alt={`Image ${lightboxIndex + 1} of ${lightboxImages.length}`}
               fill
               className="object-contain"
             />
           </div>
+
+          {/* Indicator */}
+          {lightboxImages.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+              {lightboxImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex(idx);
+                  }}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    idx === lightboxIndex ? 'bg-white' : 'bg-white/40'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
